@@ -8,6 +8,7 @@ use tilling_core::WindowId;
 
 use super::Runtime;
 use crate::error::CompositorError;
+use crate::input::SyntheticInput;
 use crate::options::Options;
 use crate::scene::Scene;
 
@@ -22,6 +23,7 @@ pub struct SessionSnapshot {
     pub mapped_windows: usize,
     pub popups: usize,
     pub transaction_pending: bool,
+    pub keyboard_mode: String,
 }
 
 #[derive(Debug)]
@@ -34,6 +36,7 @@ pub struct Session {
 #[derive(Debug)]
 enum Request {
     Snapshot(mpsc::Sender<SessionSnapshot>),
+    Inject(SyntheticInput),
     Stop,
 }
 
@@ -67,6 +70,12 @@ impl Session {
             .send(Request::Snapshot(reply))
             .map_err(|_| CompositorError::SessionClosed)?;
         snapshot.recv().map_err(|_| CompositorError::SessionClosed)
+    }
+
+    pub fn inject(&self, input: SyntheticInput) -> Result<(), CompositorError> {
+        self.requests
+            .send(Request::Inject(input))
+            .map_err(|_| CompositorError::SessionClosed)
     }
 
     pub fn stop(mut self) -> Result<(), CompositorError> {
@@ -128,6 +137,7 @@ fn prepare(options: Options) -> Result<Prepared, CompositorError> {
                     tracing::debug!("snapshot requester went away");
                 }
             }
+            Event::Msg(Request::Inject(input)) => runtime.compositor.inject(input),
             Event::Msg(Request::Stop) | Event::Closed => runtime.compositor.stop(),
         })
         .map_err(|error| CompositorError::EventSource(error.error))?;

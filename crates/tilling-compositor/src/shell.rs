@@ -1,4 +1,5 @@
 mod configure;
+mod hit_test;
 mod lifecycle;
 mod metadata;
 mod placement;

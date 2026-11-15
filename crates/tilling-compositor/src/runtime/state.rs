@@ -1,7 +1,8 @@
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
 use smithay::desktop::PopupManager;
-use smithay::input::keyboard::XkbConfig;
+use smithay::input::keyboard::{Keycode, XkbConfig};
 use smithay::input::{Seat, SeatState};
 use smithay::reexports::calloop::{LoopHandle, LoopSignal};
 use smithay::reexports::wayland_server::DisplayHandle;
@@ -9,17 +10,26 @@ use smithay::wayland::compositor::CompositorState;
 use smithay::wayland::shell::xdg::XdgShellState;
 use smithay::wayland::shell::xdg::decoration::XdgDecorationState;
 use smithay::wayland::shm::ShmState;
-use tilling_config::ValidatedConfig;
+use tilling_config::{ConfigSource, DEFAULT_MODE, ValidatedConfig};
 use tilling_core::DesktopState;
 
 use super::{OutputRegistry, Runtime};
 use crate::desktop::initial_desktop;
 use crate::error::CompositorError;
+use crate::input::{BindingTable, Launcher};
 use crate::scene::Scene;
 use crate::shell::WindowRegistry;
 use crate::transaction::Coordinator;
 
 const SEAT_NAME: &str = "seat0";
+const EVENT_TIME_WRAP: u128 = 1 << 32;
+
+pub(crate) struct Settings {
+    pub(crate) config: ValidatedConfig,
+    pub(crate) config_source: ConfigSource,
+    pub(crate) transaction_timeout: Duration,
+    pub(crate) launcher: Launcher,
+}
 
 pub(crate) struct Compositor {
     pub(crate) display_handle: DisplayHandle,
@@ -33,6 +43,11 @@ pub(crate) struct Compositor {
     pub(crate) seat: Seat<Self>,
     pub(crate) popups: PopupManager,
     pub(crate) config: ValidatedConfig,
+    pub(crate) config_source: ConfigSource,
+    pub(crate) bindings: BindingTable,
+    pub(crate) keyboard_mode: String,
+    pub(crate) suppressed_keys: HashSet<Keycode>,
+    pub(crate) launcher: Launcher,
     pub(crate) desktop: DesktopState,
     pub(crate) windows: WindowRegistry,
     pub(crate) outputs: OutputRegistry,
@@ -46,9 +61,14 @@ impl Compositor {
         display_handle: DisplayHandle,
         loop_handle: LoopHandle<'static, Runtime>,
         loop_signal: LoopSignal,
-        config: ValidatedConfig,
-        transaction_timeout: Duration,
+        settings: Settings,
     ) -> Result<Self, CompositorError> {
+        let Settings {
+            config,
+            config_source,
+            transaction_timeout,
+            launcher,
+        } = settings;
         let compositor_state = CompositorState::new::<Self>(&display_handle);
         let shm_state = ShmState::new::<Self>(&display_handle, Vec::new());
         let xdg_shell_state = XdgShellState::new::<Self>(&display_handle);
@@ -68,6 +88,7 @@ impl Compositor {
         .map_err(CompositorError::Keyboard)?;
         seat.add_pointer();
         let desktop = initial_desktop(&config)?;
+        let bindings = BindingTable::compile(config.bindings());
         Ok(Self {
             display_handle,
             loop_handle,
@@ -80,6 +101,11 @@ impl Compositor {
             seat,
             popups: PopupManager::default(),
             config,
+            config_source,
+            bindings,
+            keyboard_mode: DEFAULT_MODE.to_owned(),
+            suppressed_keys: HashSet::new(),
+            launcher,
             desktop,
             windows: WindowRegistry::default(),
             outputs: OutputRegistry::default(),
@@ -91,6 +117,10 @@ impl Compositor {
 
     pub(crate) fn elapsed(&self) -> Duration {
         self.started.elapsed()
+    }
+
+    pub(crate) fn event_time(&self) -> u32 {
+        u32::try_from(self.elapsed().as_millis() % EVENT_TIME_WRAP).unwrap_or_default()
     }
 
     pub(crate) fn stop(&self) {

@@ -2,6 +2,7 @@ mod backend;
 mod desktop;
 mod error;
 mod geometry;
+mod input;
 mod options;
 mod protocol;
 mod runtime;
@@ -10,6 +11,7 @@ mod shell;
 mod transaction;
 
 pub use error::CompositorError;
+pub use input::SyntheticInput;
 pub use options::{BackendKind, Options, VirtualOutput};
 pub use runtime::instance::InstanceError;
 pub use runtime::run;

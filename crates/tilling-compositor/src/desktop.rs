@@ -93,10 +93,11 @@ impl Compositor {
             mapped_windows: self.windows.mapped_len(),
             popups: self.xdg_shell_state.popup_surfaces().len(),
             transaction_pending: self.transactions.is_pending(),
+            keyboard_mode: self.keyboard_mode.clone(),
         }
     }
 
-    fn rearrange(&mut self) {
+    pub(crate) fn rearrange(&mut self) {
         let target = Scene::build(&self.desktop, self.config.layout().gaps);
         let configured: Vec<_> = target
             .windows()

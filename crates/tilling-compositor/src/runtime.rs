@@ -12,8 +12,10 @@ use smithay::reexports::wayland_server::Display;
 
 use crate::backend::Backend;
 use crate::error::CompositorError;
+use crate::input::Launcher;
 use crate::options::Options;
 use instance::Instance;
+use state::Settings;
 
 pub(crate) use clients::ClientState;
 pub(crate) use outputs::OutputRegistry;
@@ -40,12 +42,17 @@ impl Runtime {
         let instance = Instance::resolve(&options.runtime_dir, &options.instance)?;
         let mut display = Display::new().map_err(CompositorError::Display)?;
         let handle = event_loop.handle();
+        let settings = Settings {
+            config: options.config,
+            config_source: options.config_source,
+            transaction_timeout: options.transaction_timeout,
+            launcher: Launcher::new(&options.runtime_dir, instance.wayland_socket()),
+        };
         let mut compositor = Compositor::new(
             display.handle(),
             handle.clone(),
             event_loop.get_signal(),
-            options.config,
-            options.transaction_timeout,
+            settings,
         )?;
         let backend = Backend::start(options.backend, &options.output, &mut compositor)?;
         clients::watch_display(&handle, &mut display)?;

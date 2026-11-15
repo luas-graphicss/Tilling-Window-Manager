@@ -1,5 +1,9 @@
-use smithay::utils::{Logical, Size};
+use smithay::utils::{Logical, Point, Rectangle, Size};
 use tilling_core::geometry::LogicalRect;
+
+pub(crate) fn rectangle(rect: LogicalRect) -> Rectangle<i32, Logical> {
+    Rectangle::new(Point::from((rect.x(), rect.y())), size(rect))
+}
 
 pub(crate) fn size(rect: LogicalRect) -> Size<i32, Logical> {
     Size::from((saturate(rect.width()), saturate(rect.height())))
@@ -27,6 +31,14 @@ mod tests {
 
     fn logical(x: i32, y: i32, width: u32, height: u32) -> LogicalRect {
         LogicalRect::new(x, y, width, height).unwrap()
+    }
+
+    #[test]
+    fn rectangle_keeps_origin_and_size() {
+        let converted = rectangle(logical(-40, 12, 800, 600));
+
+        assert_eq!(converted.loc, Point::from((-40, 12)));
+        assert_eq!(converted.size, Size::from((800, 600)));
     }
 
     #[test]
