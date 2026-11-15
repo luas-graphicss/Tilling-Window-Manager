@@ -40,6 +40,8 @@ pub enum ClientError {
     PointerOutside,
     #[error("compositor does not negotiate decorations")]
     NoDecorationManager,
+    #[error("compositor does not report fractional scales")]
+    NoFractionalScaleManager,
     #[error("timed out waiting for {0}")]
     Timeout(&'static str),
 }

@@ -39,7 +39,7 @@ toml = { version = "1.2.1", default-features = false, features = ["parse", "serd
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "std"] }
 wayland-client = "0.31.15"
-wayland-protocols = { version = "0.32.13", features = ["client", "unstable"] }
+wayland-protocols = { version = "0.32.13", features = ["client", "staging", "unstable"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

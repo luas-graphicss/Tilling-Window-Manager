@@ -78,6 +78,7 @@ pub(crate) struct ToplevelRecord {
     pub(crate) close_requested: bool,
     pub(crate) capabilities: Option<Vec<WmCapabilities>>,
     pub(crate) decoration: Option<DecorationMode>,
+    pub(crate) preferred_scale: Option<u32>,
 }
 
 #[derive(Debug, Default)]
