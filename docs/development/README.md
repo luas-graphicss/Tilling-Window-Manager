@@ -39,6 +39,14 @@ A scenario groups the tests of one behaviour and, with `--operator`, asks a pers
 
 covers a whole session with an installed package: start from the display manager, work with windows, survive a broken configuration, quit and uninstall.
 
+| Scenario | Groups |
+| --- | --- |
+| `desktop-integration` | Layer shell, selections, activation, idle, pointer lock, helpers and their permissions |
+| `session-lock-failures` | The lock, a locker that dies before and after the confirmation, a second locker, hotplug while locked |
+| `config-reload-atomicity` | A reload that is refused whole or applied in one revision, and helpers across a reload |
+
+The first two also have checks for a person; the third is complete without one.
+
 ## Fuzzing
 
 Three targets live in `fuzz/`:
