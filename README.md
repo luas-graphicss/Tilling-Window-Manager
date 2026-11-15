@@ -12,10 +12,14 @@ What works and is covered by the tests in this repository:
 - Several outputs with hotplug, fractional scales, rotation and changes that revert unless confirmed.
 - A TOML configuration with key bindings, binding modes, window rules and output profiles, reloaded without restarting.
 - A versioned control protocol on a local socket and the `tillingctl` client.
+- Layer shell for panels and launchers, with the space they reserve kept free of tiles; clipboard, primary selection and drag and drop; activation tokens, idle notification and pointer lock.
+- A session lock driven by a locker such as `swaylock`, and helper programs started and stopped with the session, each with only the permissions its entry names.
 
 There are three backends: `headless`, which the tests use, `nested`, a window inside another Wayland session, and `drm`, for a virtual terminal. Only `headless` runs in the automated tests. No machine has a recorded run of `drm` yet; [docs/hardware](docs/hardware/README.md) lists what a person has to check.
 
-What does not exist yet: session locking, clipboard and drag and drop, layer shell (so panels, launchers and notification daemons that need it do not start), input methods, screen capture and XWayland. Without a lock, do not leave a machine unattended in a Tilling session.
+What does not exist yet: screen capture, so the portals for screenshots and screen sharing have nothing to use, and XWayland, so X11 applications do not start. Input methods and clipboard managers get their protocols as helpers, and no test types through one yet.
+
+The lock has only run in the tests, with a stand-in locker. Read [docs/security](docs/security/README.md) before leaving a machine unattended in a Tilling session.
 
 ## Requirements
 
@@ -60,6 +64,7 @@ builds the release binaries and writes a tarball, a `.deb`, checksums, an SBOM a
 | Where | What |
 | --- | --- |
 | [docs/user](docs/user/installation.md) | Installing, first start, recovery |
+| [docs/user/session.md](docs/user/session.md) | Locker, helpers, permissions, user services and portals |
 | [docs/window-management.md](docs/window-management.md) | Layouts, scratchpad, moving between outputs |
 | [docs/outputs.md](docs/outputs.md) | Output profiles, hotplug, confirmed changes |
 | [docs/protocols](docs/protocols/README.md) | Wayland globals, versions and their tests |
