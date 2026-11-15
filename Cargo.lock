@@ -1787,6 +1787,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tilling-fuzz-cases"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "tilling-config",
+ "tilling-core",
+ "tilling-ipc",
+]
+
+[[package]]
 name = "tilling-ipc"
 version = "0.1.0"
 dependencies = [

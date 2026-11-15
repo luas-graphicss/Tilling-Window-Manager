@@ -1,0 +1,37 @@
+[package]
+name = "tilling-fuzz"
+description = "libFuzzer targets of the Tilling workspace"
+version = "0.0.0"
+edition = "2024"
+license = "GPL-3.0-only"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4.13"
+tilling-fuzz-cases = { path = "../crates/tilling-fuzz-cases" }
+
+[[bin]]
+name = "configuration"
+path = "fuzz_targets/configuration.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "control_stream"
+path = "fuzz_targets/control_stream.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "desktop"
+path = "fuzz_targets/desktop.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
