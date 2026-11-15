@@ -1,10 +1,15 @@
 use smithay::backend::input::KeyState;
-use smithay::input::keyboard::{FilterResult, Keycode, KeysymHandle, ModifiersState};
+use smithay::input::keyboard::{
+    FilterResult, Keycode, Keysym, KeysymHandle, ModifiersState, keysyms,
+};
 use smithay::utils::SERIAL_COUNTER;
 use tilling_config::Action;
 
 use super::bindings::held_modifiers;
 use crate::runtime::Compositor;
+
+const FIRST_TERMINAL_SWITCH: u32 = keysyms::KEY_XF86Switch_VT_1;
+const LAST_TERMINAL_SWITCH: u32 = keysyms::KEY_XF86Switch_VT_12;
 
 impl Compositor {
     pub(crate) fn handle_key(&mut self, keycode: Keycode, state: KeyState, time: u32) {
@@ -52,6 +57,11 @@ impl Compositor {
                 FilterResult::Forward
             };
         }
+        if let Some(terminal) = terminal_of(handle.modified_sym()) {
+            self.suppressed_keys.insert(keycode);
+            self.request_terminal_switch(terminal);
+            return FilterResult::Intercept(None);
+        }
         let mut candidates = handle.raw_syms();
         candidates.push(handle.modified_sym());
         let held = held_modifiers(modifiers);
@@ -61,5 +71,33 @@ impl Compositor {
         let action = action.clone();
         self.suppressed_keys.insert(keycode);
         FilterResult::Intercept(Some(action))
+    }
+}
+
+fn terminal_of(symbol: Keysym) -> Option<i32> {
+    let raw = symbol.raw();
+    if !(FIRST_TERMINAL_SWITCH..=LAST_TERMINAL_SWITCH).contains(&raw) {
+        return None;
+    }
+    i32::try_from(raw - FIRST_TERMINAL_SWITCH + 1).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn terminal_switch_symbols_name_their_terminal() {
+        let first = terminal_of(Keysym::from(keysyms::KEY_XF86Switch_VT_1));
+        let seventh = terminal_of(Keysym::from(keysyms::KEY_XF86Switch_VT_7));
+        let last = terminal_of(Keysym::from(keysyms::KEY_XF86Switch_VT_12));
+
+        assert_eq!((first, seventh, last), (Some(1), Some(7), Some(12)));
+    }
+
+    #[test]
+    fn other_symbols_do_not_switch_terminals() {
+        assert_eq!(terminal_of(Keysym::from(keysyms::KEY_F1)), None);
+        assert_eq!(terminal_of(Keysym::from(keysyms::KEY_XF86AudioMute)), None);
     }
 }

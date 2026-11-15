@@ -64,7 +64,7 @@ impl NestedBackend {
                 };
                 compositor.resize_output(&self.output, mode, scale_factor);
             }
-            WinitEvent::Input(event) => compositor.handle_device_event(event, &self.output),
+            WinitEvent::Input(event) => compositor.handle_device_event(event, Some(&self.output)),
             WinitEvent::Focus(false) => compositor.release_held_keys(),
             WinitEvent::Focus(true) => {}
             WinitEvent::Redraw => self.present(compositor),

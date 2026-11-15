@@ -11,6 +11,7 @@ const DEFAULT_TRANSACTION_TIMEOUT: Duration = Duration::from_millis(200);
 pub enum BackendKind {
     Nested,
     Headless,
+    Drm,
 }
 
 impl BackendKind {
@@ -19,13 +20,7 @@ impl BackendKind {
         match self {
             Self::Nested => "nested",
             Self::Headless => "headless",
-        }
-    }
-
-    const fn output_name(self) -> &'static str {
-        match self {
-            Self::Nested => "NESTED-1",
-            Self::Headless => "HEADLESS-1",
+            Self::Drm => "drm",
         }
     }
 }
@@ -63,7 +58,7 @@ impl Options {
             runtime_dir,
             instance: std::process::id().to_string(),
             output: VirtualOutput {
-                name: backend.output_name().to_owned(),
+                name: format!("{}-1", backend.name().to_ascii_uppercase()),
                 width: DEFAULT_OUTPUT_WIDTH,
                 height: DEFAULT_OUTPUT_HEIGHT,
             },

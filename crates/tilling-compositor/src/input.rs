@@ -1,6 +1,6 @@
 mod actions;
 mod bindings;
-#[cfg(feature = "nested")]
+#[cfg(any(feature = "nested", feature = "drm"))]
 mod device;
 mod drag_grab;
 mod keyboard;

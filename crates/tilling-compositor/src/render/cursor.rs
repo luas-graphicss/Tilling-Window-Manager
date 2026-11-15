@@ -1,6 +1,6 @@
 use smithay::backend::renderer::element::Kind;
 use smithay::backend::renderer::element::surface::render_elements_from_surface_tree;
-use smithay::backend::renderer::{ImportAll, Renderer};
+use smithay::backend::renderer::{ImportAll, ImportMem, Renderer};
 use smithay::input::pointer::{CursorImageStatus, CursorImageSurfaceData};
 use smithay::reexports::wayland_server::Resource;
 use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
@@ -28,7 +28,7 @@ pub(super) fn cursor_elements<R>(
     scale: Scale<f64>,
 ) -> Vec<SceneElement<R>>
 where
-    R: Renderer + ImportAll,
+    R: Renderer + ImportAll + ImportMem,
     R::TextureId: Clone + 'static,
 {
     let Some(surface) = compositor.cursor_surface() else {

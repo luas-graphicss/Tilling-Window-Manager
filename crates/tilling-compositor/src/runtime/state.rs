@@ -24,6 +24,8 @@ use crate::desktop::initial_desktop;
 use crate::error::CompositorError;
 use crate::input::{BindingTable, InputSerials, Launcher};
 use crate::output::OutputRegistry;
+#[cfg(feature = "drm")]
+use crate::protocol::DmabufImports;
 use crate::render::FrameStats;
 use crate::scene::Scene;
 use crate::shell::WindowRegistry;
@@ -58,6 +60,10 @@ pub(crate) struct Compositor {
     pub(crate) suppressed_keys: HashSet<Keycode>,
     pub(crate) input_serials: InputSerials,
     pub(crate) cursor: CursorImageStatus,
+    pub(crate) draws_named_cursor: bool,
+    terminal_switch: Option<i32>,
+    #[cfg(feature = "drm")]
+    pub(crate) dmabuf: DmabufImports,
     pub(crate) launcher: Launcher,
     pub(crate) desktop: DesktopState,
     pub(crate) windows: WindowRegistry,
@@ -127,6 +133,10 @@ impl Compositor {
             suppressed_keys: HashSet::new(),
             input_serials: InputSerials::default(),
             cursor: CursorImageStatus::default_named(),
+            draws_named_cursor: false,
+            terminal_switch: None,
+            #[cfg(feature = "drm")]
+            dmabuf: DmabufImports::default(),
             launcher,
             desktop,
             windows: WindowRegistry::default(),
@@ -158,5 +168,13 @@ impl Compositor {
 
     pub(crate) fn take_frame_demand(&mut self) -> bool {
         std::mem::take(&mut self.frame_demanded)
+    }
+
+    pub(crate) fn request_terminal_switch(&mut self, terminal: i32) {
+        self.terminal_switch = Some(terminal);
+    }
+
+    pub(crate) fn take_terminal_switch(&mut self) -> Option<i32> {
+        self.terminal_switch.take()
     }
 }

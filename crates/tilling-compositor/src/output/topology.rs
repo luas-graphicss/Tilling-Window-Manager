@@ -111,6 +111,15 @@ impl Compositor {
         self.demand_frame();
     }
 
+    #[cfg(feature = "drm")]
+    pub(crate) fn output_profile(
+        &self,
+        name: &str,
+        monitor_key: Option<&str>,
+    ) -> Option<&tilling_config::OutputConfig> {
+        profile::find(self.config.outputs(), name, monitor_key)
+    }
+
     pub(crate) fn output_showing(&self, window: WindowId) -> Option<&Output> {
         let workspace = self.desktop.window(window)?.workspace();
         let owner = self.desktop.workspace(workspace)?.output()?;

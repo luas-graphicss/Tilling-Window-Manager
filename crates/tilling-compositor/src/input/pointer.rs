@@ -33,8 +33,30 @@ impl Compositor {
         };
         pointer.motion(self, focus, &event);
         pointer.frame(self);
-        if self.cursor_surface().is_some() {
+        if self.draws_named_cursor || self.cursor_surface().is_some() {
             self.demand_frame();
+        }
+    }
+
+    #[cfg(any(feature = "nested", feature = "drm"))]
+    pub(crate) fn handle_pointer_delta(&mut self, delta: Point<f64, Logical>, time: u32) {
+        let Some(pointer) = self.seat.get_pointer() else {
+            return;
+        };
+        let wanted = pointer.current_location() + delta;
+        let areas = self.desktop.outputs().map(|(_, output)| output.area());
+        if let Some(location) = nearest_inside(areas, wanted) {
+            self.handle_pointer_motion(location, time);
+        }
+    }
+
+    #[cfg(feature = "drm")]
+    pub(crate) fn cancel_pointer_grab(&mut self) {
+        let Some(pointer) = self.seat.get_pointer() else {
+            return;
+        };
+        if pointer.is_grabbed() {
+            pointer.unset_grab(self, SERIAL_COUNTER.next_serial(), self.event_time());
         }
     }
 

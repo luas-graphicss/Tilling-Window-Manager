@@ -86,8 +86,9 @@ impl Runtime {
     fn after_dispatch(&mut self) {
         self.compositor.settle();
         self.compositor.popups.cleanup();
+        self.backend.follow(&mut self.compositor);
         if self.compositor.take_frame_demand() {
-            self.backend.schedule_frame(&self.compositor.loop_handle);
+            self.backend.schedule_frame(&mut self.compositor);
         }
         if let Err(error) = self.display.flush_clients() {
             tracing::warn!(%error, "flush wayland clients");
