@@ -17,6 +17,9 @@ pub enum Scenario {
     SeatReactivation,
     RendererFallback,
     ReleaseJourney,
+    DesktopIntegration,
+    SessionLockFailures,
+    ConfigReloadAtomicity,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,6 +48,9 @@ impl Scenario {
             Self::SeatReactivation => "seat-reactivation",
             Self::RendererFallback => "renderer-fallback",
             Self::ReleaseJourney => "release-journey",
+            Self::DesktopIntegration => "desktop-integration",
+            Self::SessionLockFailures => "session-lock-failures",
+            Self::ConfigReloadAtomicity => "config-reload-atomicity",
         }
     }
 
@@ -66,7 +72,10 @@ impl Scenario {
             | Self::FractionalScale
             | Self::SeatReactivation
             | Self::RendererFallback
-            | Self::ReleaseJourney => &[],
+            | Self::ReleaseJourney
+            | Self::DesktopIntegration
+            | Self::SessionLockFailures
+            | Self::ConfigReloadAtomicity => &[],
         }
     }
 }
