@@ -1665,9 +1665,20 @@ dependencies = [
 name = "tilling-ipc"
 version = "0.1.0"
 dependencies = [
+ "rustix 1.1.6",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "tilling-test-support"
+version = "0.1.0"
+dependencies = [
+ "rustix 1.1.6",
+ "thiserror 2.0.21",
+ "wayland-client",
+ "wayland-protocols",
 ]
 
 [[package]]
