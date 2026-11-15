@@ -6,6 +6,7 @@ mod harness;
 mod keyboard;
 mod keys;
 mod lifecycle;
+mod outputs;
 mod pointer;
 mod popups;
 mod subsurfaces;

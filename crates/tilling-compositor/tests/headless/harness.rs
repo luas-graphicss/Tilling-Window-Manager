@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use tempfile::TempDir;
 use tilling_compositor::{
-    BackendKind, FrameStats, Options, Session, SessionSnapshot, SyntheticInput,
+    BackendKind, FrameStats, Options, Session, SessionSnapshot, SyntheticInput, VirtualOutput,
 };
 use tilling_config::{ConfigSource, ValidatedConfig};
 use tilling_test_support::Client;
@@ -194,6 +194,22 @@ impl Harness {
 
     pub(crate) fn runtime_dir(&self) -> &Path {
         self.runtime_dir.path()
+    }
+
+    pub(crate) fn session(&self) -> &Session {
+        &self.session
+    }
+
+    pub(crate) fn plug(&self, output: VirtualOutput) {
+        self.session
+            .plug_output(output)
+            .unwrap_or_else(|error| panic!("virtual output was not connected: {error}"));
+    }
+
+    pub(crate) fn unplug(&self, name: &str) {
+        self.session
+            .unplug_output(name)
+            .unwrap_or_else(|error| panic!("virtual output was not disconnected: {error}"));
     }
 
     fn inject(&self, input: SyntheticInput) {

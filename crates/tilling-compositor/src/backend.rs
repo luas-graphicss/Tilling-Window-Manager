@@ -40,6 +40,30 @@ impl Backend {
         }
     }
 
+    pub(crate) fn plug_virtual_output(
+        &mut self,
+        output: &VirtualOutput,
+        compositor: &mut Compositor,
+    ) -> Result<(), CompositorError> {
+        match self {
+            Self::Headless(backend) => backend.plug(output, compositor),
+            #[cfg(feature = "nested")]
+            Self::Nested(_) => Err(CompositorError::FixedOutputs(BackendKind::Nested.name())),
+        }
+    }
+
+    pub(crate) fn unplug_virtual_output(
+        &mut self,
+        name: &str,
+        compositor: &mut Compositor,
+    ) -> Result<(), CompositorError> {
+        match self {
+            Self::Headless(backend) => backend.unplug(name, compositor),
+            #[cfg(feature = "nested")]
+            Self::Nested(_) => Err(CompositorError::FixedOutputs(BackendKind::Nested.name())),
+        }
+    }
+
     pub(crate) fn schedule_frame(&mut self, handle: &LoopHandle<'static, Runtime>) {
         match self {
             Self::Headless(backend) => backend.schedule_frame(handle),

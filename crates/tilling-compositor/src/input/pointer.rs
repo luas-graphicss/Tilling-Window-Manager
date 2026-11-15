@@ -3,9 +3,24 @@ use smithay::input::pointer::{ButtonEvent, MotionEvent};
 use smithay::utils::{Logical, Point, SERIAL_COUNTER};
 use tilling_core::Command;
 
+use crate::geometry::nearest_inside;
 use crate::runtime::Compositor;
 
 impl Compositor {
+    pub(crate) fn confine_pointer(&mut self) {
+        let Some(pointer) = self.seat.get_pointer() else {
+            return;
+        };
+        let location = pointer.current_location();
+        let areas = self.desktop.outputs().map(|(_, output)| output.area());
+        let Some(confined) = nearest_inside(areas, location) else {
+            return;
+        };
+        if confined != location {
+            self.handle_pointer_motion(confined, self.event_time());
+        }
+    }
+
     pub(crate) fn handle_pointer_motion(&mut self, location: Point<f64, Logical>, time: u32) {
         let Some(pointer) = self.seat.get_pointer() else {
             return;

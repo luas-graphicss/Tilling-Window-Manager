@@ -10,7 +10,7 @@ use super::Runtime;
 use super::instance::Instance;
 use crate::error::CompositorError;
 use crate::input::SyntheticInput;
-use crate::options::{BackendKind, Options};
+use crate::options::{BackendKind, Options, VirtualOutput};
 use crate::render::FrameStats;
 use crate::scene::Scene;
 
@@ -42,8 +42,12 @@ pub struct Session {
 enum Request {
     Snapshot(mpsc::Sender<SessionSnapshot>),
     Inject(SyntheticInput),
+    PlugOutput(VirtualOutput, mpsc::Sender<TopologyChange>),
+    UnplugOutput(String, mpsc::Sender<TopologyChange>),
     Stop,
 }
+
+type TopologyChange = Result<(), CompositorError>;
 
 type Startup = Result<(Instance, Sender<Request>), CompositorError>;
 
@@ -91,8 +95,27 @@ impl Session {
             .map_err(|_| CompositorError::SessionClosed)
     }
 
+    pub fn plug_output(&self, output: VirtualOutput) -> Result<(), CompositorError> {
+        self.change_topology(|reply| Request::PlugOutput(output, reply))
+    }
+
+    pub fn unplug_output(&self, name: &str) -> Result<(), CompositorError> {
+        self.change_topology(|reply| Request::UnplugOutput(name.to_owned(), reply))
+    }
+
     pub fn stop(mut self) -> Result<(), CompositorError> {
         self.shut_down()
+    }
+
+    fn change_topology(
+        &self,
+        request: impl FnOnce(mpsc::Sender<TopologyChange>) -> Request,
+    ) -> Result<(), CompositorError> {
+        let (reply, outcome) = mpsc::channel();
+        self.requests
+            .send(request(reply))
+            .map_err(|_| CompositorError::SessionClosed)?;
+        outcome.recv().map_err(|_| CompositorError::SessionClosed)?
     }
 
     fn shut_down(&mut self) -> Result<(), CompositorError> {
@@ -132,6 +155,12 @@ fn serve(options: Options, announce: &mpsc::Sender<Startup>) -> Result<(), Compo
     runtime.serve(&mut event_loop)
 }
 
+fn report_topology_change(reply: &mpsc::Sender<TopologyChange>, outcome: TopologyChange) {
+    if reply.send(outcome).is_err() {
+        tracing::debug!("output requester went away");
+    }
+}
+
 type Prepared = (
     EventLoop<'static, Runtime>,
     Runtime,
@@ -151,6 +180,18 @@ fn prepare(options: Options) -> Result<Prepared, CompositorError> {
                 }
             }
             Event::Msg(Request::Inject(input)) => runtime.compositor.inject(input),
+            Event::Msg(Request::PlugOutput(output, reply)) => {
+                let outcome = runtime
+                    .backend
+                    .plug_virtual_output(&output, &mut runtime.compositor);
+                report_topology_change(&reply, outcome);
+            }
+            Event::Msg(Request::UnplugOutput(name, reply)) => {
+                let outcome = runtime
+                    .backend
+                    .unplug_virtual_output(&name, &mut runtime.compositor);
+                report_topology_change(&reply, outcome);
+            }
             Event::Msg(Request::Stop) | Event::Closed => runtime.compositor.stop(),
         })
         .map_err(|error| CompositorError::EventSource(error.error))?;

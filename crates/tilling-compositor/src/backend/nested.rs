@@ -1,12 +1,13 @@
 use smithay::backend::renderer::gles::GlesRenderer;
 use smithay::backend::winit::{self, WinitEvent, WinitGraphicsBackend};
 use smithay::input::pointer::{CursorIcon, CursorImageStatus};
-use smithay::output::Output;
+use smithay::output::{Mode, Output};
 use smithay::reexports::winit::dpi::PhysicalSize;
 use smithay::reexports::winit::window::Window;
 
 use crate::error::{CompositorError, cause_chain};
 use crate::options::VirtualOutput;
+use crate::output::OutputDescription;
 use crate::render::Painter;
 use crate::runtime::Compositor;
 
@@ -30,12 +31,13 @@ impl NestedBackend {
             .with_title(TITLE);
         let (host, events) = winit::init_from_attributes::<GlesRenderer>(attributes)
             .map_err(|error| CompositorError::HostWindow(cause_chain(&error)))?;
-        let output = compositor.attach_output(
+        let description = OutputDescription::virtual_output(
             &output.name,
             host.window_size(),
             REFRESH_MILLIHERTZ,
             host.scale_factor(),
-        )?;
+        );
+        let output = compositor.attach_output(description)?;
         compositor
             .loop_handle
             .insert_source(events, |event, (), runtime| runtime.host_event(event))
@@ -56,7 +58,11 @@ impl NestedBackend {
     pub(crate) fn handle_event(&mut self, event: WinitEvent, compositor: &mut Compositor) {
         match event {
             WinitEvent::Resized { size, scale_factor } => {
-                compositor.resize_output(&self.output, size, REFRESH_MILLIHERTZ, scale_factor);
+                let mode = Mode {
+                    size,
+                    refresh: REFRESH_MILLIHERTZ,
+                };
+                compositor.resize_output(&self.output, mode, scale_factor);
             }
             WinitEvent::Input(event) => compositor.handle_device_event(event, &self.output),
             WinitEvent::Focus(false) => compositor.release_held_keys(),

@@ -36,6 +36,12 @@ pub enum CompositorError {
     NoWorkspaces,
     #[error("virtual output {width}x{height} is not a usable size")]
     OutputSize { width: u32, height: u32 },
+    #[error("output {0} is already connected")]
+    OutputInUse(String),
+    #[error("output {0} is not connected")]
+    UnknownOutput(String),
+    #[error("the {0} backend does not take virtual outputs")]
+    FixedOutputs(&'static str),
     #[error("this build does not include the {0} backend")]
     BackendUnavailable(&'static str),
     #[error("the {0} backend needs the main thread and cannot run in a session")]

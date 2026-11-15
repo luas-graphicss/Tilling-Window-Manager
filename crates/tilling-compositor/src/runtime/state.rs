@@ -15,11 +15,12 @@ use smithay::wayland::shm::ShmState;
 use tilling_config::{ConfigSource, DEFAULT_MODE, ValidatedConfig};
 use tilling_core::DesktopState;
 
-use super::{OutputRegistry, Runtime};
+use super::Runtime;
 use crate::control::ControlPeers;
 use crate::desktop::initial_desktop;
 use crate::error::CompositorError;
 use crate::input::{BindingTable, InputSerials, Launcher};
+use crate::output::OutputRegistry;
 use crate::render::FrameStats;
 use crate::scene::Scene;
 use crate::shell::WindowRegistry;

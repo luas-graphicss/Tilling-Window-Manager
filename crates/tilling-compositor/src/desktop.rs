@@ -12,7 +12,7 @@ use tilling_core::{
 use crate::error::CompositorError;
 use crate::runtime::Compositor;
 use crate::runtime::session::SessionSnapshot;
-use crate::scene::Scene;
+use crate::scene::{Scene, SceneWindow};
 use crate::shell::configure_toplevel;
 
 pub(crate) fn initial_desktop(config: &ValidatedConfig) -> Result<DesktopState, CompositorError> {
@@ -62,13 +62,16 @@ impl Compositor {
     pub(crate) fn settle(&mut self) {
         if let Some(scene) = self.transactions.settle(self.elapsed()) {
             self.scene = scene;
+            self.announce_surface_outputs();
             self.demand_frame();
         }
     }
 
     pub(crate) fn send_frame_callbacks(&self, output: &Output) {
         let elapsed = self.elapsed();
-        for placed in self.scene.windows() {
+        let shown = self.outputs.id_of(output);
+        let on_output = |placed: &&SceneWindow| Some(placed.output) == shown;
+        for placed in self.scene.windows().iter().filter(on_output) {
             if let Some(managed) = self.windows.by_id(placed.id) {
                 managed
                     .window

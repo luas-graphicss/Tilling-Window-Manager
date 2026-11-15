@@ -1,6 +1,5 @@
 mod clients;
 pub(crate) mod instance;
-mod outputs;
 pub(crate) mod session;
 mod signals;
 mod state;
@@ -19,7 +18,6 @@ use instance::Instance;
 use state::Settings;
 
 pub(crate) use clients::ClientState;
-pub(crate) use outputs::OutputRegistry;
 pub(crate) use state::Compositor;
 
 pub(crate) struct Runtime {
