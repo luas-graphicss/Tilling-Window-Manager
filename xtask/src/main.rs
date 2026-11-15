@@ -2,17 +2,20 @@ mod cargo;
 mod checks;
 mod inventory;
 mod operator;
+mod package;
 mod runner;
 mod sandbox;
 mod scenario;
 
 use std::error::Error;
 use std::io::{self, BufRead};
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 
 use crate::checks::{CheckError, Profile};
+use crate::package::{PackageError, Target};
 use crate::runner::{RunError, Verdict};
 use crate::scenario::Scenario;
 
@@ -48,6 +51,24 @@ enum Task {
         )]
         profile: Profile,
     },
+    #[command(about = "Build the release binaries and the files that distribute them")]
+    Package {
+        #[arg(
+            long,
+            value_enum,
+            value_name = "TRIPLE",
+            default_value_t = Target::X86_64Linux,
+            help = "Platform the binaries are built for"
+        )]
+        target: Target,
+        #[arg(
+            long,
+            value_name = "DIRECTORY",
+            default_value = "dist",
+            help = "Where the artifacts are written"
+        )]
+        output: PathBuf,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -56,6 +77,8 @@ enum TaskError {
     Scenario(#[from] RunError),
     #[error(transparent)]
     Check(#[from] CheckError),
+    #[error(transparent)]
+    Package(#[from] PackageError),
 }
 
 fn main() -> ExitCode {
@@ -79,6 +102,10 @@ fn run(task: Task) -> Result<Verdict, TaskError> {
             Ok(runner::run(name, operator, &mut report)?)
         }
         Task::Check { profile } => Ok(checks::run(profile, &mut report)?),
+        Task::Package { target, output } => {
+            package::run(target, &output, &mut report)?;
+            Ok(Verdict::Passed)
+        }
     }
 }
 
