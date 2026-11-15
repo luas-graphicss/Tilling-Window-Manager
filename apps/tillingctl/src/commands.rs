@@ -5,6 +5,7 @@ use tilling_ipc::client::{Client, ClientError};
 use tilling_ipc::{Call, Event, Outcome, Reply, ResourceId};
 
 use crate::arguments::{Arguments, Operation, WorkspaceReference};
+use crate::completions;
 use crate::output::{self, Format};
 use crate::target::{self, Environment, TargetError};
 use crate::topics::TopicFilter;
@@ -54,6 +55,10 @@ pub fn run(arguments: &Arguments, environment: &Environment) -> Result<Status, C
             let instances = target::running_instances(environment)?;
             let listed = output::instances(&instances, format)?;
             print(&mut standard_output, &listed)?;
+            Ok(Status::Done)
+        }
+        Operation::PrintCompletions(shell) => {
+            completions::print(shell, &mut standard_output)?;
             Ok(Status::Done)
         }
         Operation::Call(call) => {

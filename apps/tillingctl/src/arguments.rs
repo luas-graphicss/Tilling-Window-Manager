@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use clap_complete::Shell;
 use tilling_ipc::endpoint::InstanceName;
 use tilling_ipc::{Call, ResourceId};
 
@@ -135,6 +136,11 @@ pub enum Command {
     },
     #[command(about = "List the running instances")]
     Instances,
+    #[command(about = "Print the completion script of a shell")]
+    Completions {
+        #[arg(value_enum)]
+        shell: Shell,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
@@ -146,6 +152,7 @@ pub enum ConfigAction {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operation {
     ListInstances,
+    PrintCompletions(Shell),
     Call(Call),
     CallOnWorkspace(WorkspaceReference, WorkspaceCall),
     FollowEvents(TopicFilter),
@@ -185,6 +192,7 @@ impl Command {
             Self::Quit => Operation::Call(Call::Quit),
             Self::Events { topics } => Operation::FollowEvents(TopicFilter::new(topics)),
             Self::Instances => Operation::ListInstances,
+            Self::Completions { shell } => Operation::PrintCompletions(*shell),
         }
     }
 }
@@ -396,6 +404,18 @@ mod tests {
     #[test]
     fn listing_instances_needs_no_request() {
         assert_eq!(operation_of(&["instances"]), Operation::ListInstances);
+    }
+
+    #[test]
+    fn completions_name_the_shell_and_need_no_request() {
+        assert_eq!(
+            operation_of(&["completions", "zsh"]),
+            Operation::PrintCompletions(Shell::Zsh)
+        );
+        assert_eq!(
+            parse(&["completions", "tcsh"]).unwrap_err().kind(),
+            ErrorKind::InvalidValue
+        );
     }
 
     #[test]
