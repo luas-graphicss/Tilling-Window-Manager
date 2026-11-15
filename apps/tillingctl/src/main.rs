@@ -2,6 +2,7 @@ mod arguments;
 mod commands;
 mod output;
 mod target;
+mod topics;
 
 use std::error::Error;
 use std::process::ExitCode;

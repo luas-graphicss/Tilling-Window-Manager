@@ -1,4 +1,5 @@
 mod actions;
+mod arrangement;
 mod bindings;
 #[cfg(any(feature = "nested", feature = "drm"))]
 mod device;

@@ -5,6 +5,7 @@ use tilling_ipc::client::Client;
 use tilling_ipc::{Call, Outcome, OutputInfo, Reply, ResourceId, WorkspaceInfo};
 
 use crate::harness::Harness;
+use crate::keys;
 
 const PRIMARY: &str = "HEADLESS-1";
 const SPARE: &str = "HEADLESS-2";
@@ -185,4 +186,29 @@ fn duplicate_unknown_and_empty_outputs_are_refused() {
         })
     ));
     assert_eq!(harness.published(0).mapped_windows, 0);
+}
+
+#[test]
+fn output_shortcuts_send_a_window_to_the_adjacent_output_and_follow_it() {
+    let harness = Harness::start();
+    let mut client = harness.connect();
+    harness.plug(spare());
+    let window = client.create_toplevel("org.example.Browser", "docs");
+    client.map(window).unwrap();
+    client.settle().unwrap();
+    let on_primary = harness.published(1);
+
+    harness.chord(&[keys::SUPER, keys::CONTROL, keys::SHIFT, keys::L]);
+    client.settle().unwrap();
+    let sent = harness.wait_until("the window is tiled on the spare output", |snapshot| {
+        !snapshot.transaction_pending
+            && matches!(snapshot.scene.windows(), [only] if only.frame.x() >= PRIMARY_WIDTH)
+    });
+    let followed = harness.chord(&[keys::SUPER, keys::CONTROL, keys::L]);
+    client.roundtrip().unwrap();
+
+    assert!(on_primary.scene.windows()[0].frame.x() < PRIMARY_WIDTH);
+    assert_eq!(sent.focused, None);
+    assert_eq!(followed.focused, Some(sent.scene.windows()[0].id));
+    assert_eq!(client.keyboard_focus(), Some(window));
 }

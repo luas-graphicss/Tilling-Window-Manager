@@ -1,4 +1,5 @@
 mod outputs;
+mod scratchpad;
 mod windows;
 mod workspaces;
 
@@ -59,6 +60,8 @@ pub enum TransitionError {
     EmptyOutputArea,
     #[error("window {0} must leave fullscreen before changing mode")]
     FullscreenLocked(WindowId),
+    #[error("window {0} is stashed in the scratchpad")]
+    WindowStashed(WindowId),
     #[error("revision counter is exhausted")]
     RevisionExhausted,
     #[error(transparent)]
@@ -107,6 +110,11 @@ impl DesktopState {
             Command::RemoveOutput { output } => self.remove_output(output),
             Command::CreateWorkspace { name } => self.create_workspace(name),
             Command::SwitchWorkspace { workspace } => self.activate_workspace(workspace),
+            Command::SetLayout { workspace, layout } => self.set_layout(workspace, layout),
+            Command::SetDefaultLayout { layout } => {
+                self.default_layout = layout;
+                Ok(Vec::new())
+            }
             Command::OpenWindow {
                 metadata,
                 workspace,
@@ -124,6 +132,12 @@ impl DesktopState {
                 self.move_window_to_workspace(window, workspace)
             }
             Command::ChangeWindowMode { window, change } => self.change_window_mode(window, change),
+            Command::StashWindow { window, area } => self.stash_window(window, area),
+            Command::ToggleScratchpad => self.toggle_scratchpad(),
+            Command::FocusOutput { direction } => self.focus_output(direction),
+            Command::MoveWindowToOutput { window, direction } => {
+                self.move_window_to_output(window, direction)
+            }
             Command::ToggleSplit { window } => self.toggle_split(window),
             Command::ResizeSplit { window, delta } => self.resize_split(window, delta),
         }
@@ -161,6 +175,14 @@ impl DesktopState {
         self.windows
             .get(window)
             .ok_or(TransitionError::UnknownWindow(window))
+    }
+
+    fn require_placed(&self, window: WindowId) -> Result<&Window, TransitionError> {
+        let placed = self.require_window(window)?;
+        if self.scratchpad.is_stashed(window) {
+            return Err(TransitionError::WindowStashed(window));
+        }
+        Ok(placed)
     }
 
     fn require_window_mut(&mut self, window: WindowId) -> Result<&mut Window, TransitionError> {

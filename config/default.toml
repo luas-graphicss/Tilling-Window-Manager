@@ -5,6 +5,7 @@ workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
 [layout]
 inner_gap = 8
 outer_gap = 8
+default = "bsp"
 
 [input.keyboard]
 layout = "us"
@@ -64,6 +65,38 @@ keys = "Super+Shift+l"
 action = { move = "right" }
 
 [[bindings]]
+keys = "Super+Ctrl+h"
+action = { focus-output = "left" }
+
+[[bindings]]
+keys = "Super+Ctrl+j"
+action = { focus-output = "down" }
+
+[[bindings]]
+keys = "Super+Ctrl+k"
+action = { focus-output = "up" }
+
+[[bindings]]
+keys = "Super+Ctrl+l"
+action = { focus-output = "right" }
+
+[[bindings]]
+keys = "Super+Ctrl+Shift+h"
+action = { move-to-output = "left" }
+
+[[bindings]]
+keys = "Super+Ctrl+Shift+j"
+action = { move-to-output = "down" }
+
+[[bindings]]
+keys = "Super+Ctrl+Shift+k"
+action = { move-to-output = "up" }
+
+[[bindings]]
+keys = "Super+Ctrl+Shift+l"
+action = { move-to-output = "right" }
+
+[[bindings]]
 keys = "Super+f"
 action = "toggle-fullscreen"
 
@@ -72,8 +105,32 @@ keys = "Super+Shift+space"
 action = "toggle-floating"
 
 [[bindings]]
+keys = "Super+Shift+minus"
+action = "move-to-scratchpad"
+
+[[bindings]]
+keys = "Super+minus"
+action = "toggle-scratchpad"
+
+[[bindings]]
 keys = "Super+e"
 action = "toggle-split"
+
+[[bindings]]
+keys = "Super+space"
+action = "cycle-layout"
+
+[[bindings]]
+keys = "Super+b"
+action = { set-layout = "bsp" }
+
+[[bindings]]
+keys = "Super+t"
+action = { set-layout = "master-stack" }
+
+[[bindings]]
+keys = "Super+m"
+action = { set-layout = "monocle" }
 
 [[bindings]]
 keys = "Super+r"

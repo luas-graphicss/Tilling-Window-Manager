@@ -1,4 +1,5 @@
 mod outputs;
+mod workspaces;
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -7,7 +8,10 @@ use clap::{Parser, Subcommand, ValueEnum};
 use tilling_ipc::endpoint::InstanceName;
 use tilling_ipc::{Call, ResourceId};
 
+use crate::topics::{Topic, TopicFilter};
+
 pub use outputs::OutputAction;
+pub use workspaces::{LayoutAction, WorkspaceAction, WorkspaceCall, WorkspaceReference};
 
 const DEFAULT_TIMEOUT_MILLISECONDS: u64 = 5000;
 
@@ -80,12 +84,10 @@ pub enum Command {
         #[arg(value_enum)]
         direction: Direction,
     },
-    #[command(about = "Choose the layout of a workspace")]
+    #[command(about = "Choose how a workspace arranges its windows")]
     Layout {
-        #[arg(value_name = "WORKSPACE", value_parser = parse_resource_id)]
-        workspace: ResourceId,
-        #[arg(value_enum)]
-        layout: Layout,
+        #[command(subcommand)]
+        action: LayoutAction,
     },
     #[command(about = "Grow or shrink a window by a signed step")]
     Resize {
@@ -101,55 +103,89 @@ pub enum Command {
         #[arg(value_enum)]
         mode: Mode,
     },
-    #[command(about = "Switch to a workspace")]
+    #[command(about = "Show another workspace")]
     Workspace {
-        #[arg(value_name = "WORKSPACE", value_parser = parse_resource_id)]
-        workspace: ResourceId,
+        #[command(subcommand)]
+        action: WorkspaceAction,
     },
     #[command(about = "Change an output and keep the change once it is confirmed")]
     Output {
         #[command(subcommand)]
         action: OutputAction,
     },
-    #[command(about = "Reload the configuration")]
-    Reload,
+    #[command(about = "Manage the configuration")]
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
     #[command(about = "Ask the session to lock")]
     Lock,
     #[command(about = "Stop the compositor")]
     Quit,
     #[command(about = "Print a snapshot followed by every event")]
-    Subscribe,
+    Events {
+        #[arg(
+            long,
+            value_enum,
+            value_delimiter = ',',
+            value_name = "TOPICS",
+            help = "Only print these topics, separated by commas"
+        )]
+        topics: Vec<Topic>,
+    },
     #[command(about = "List the running instances")]
     Instances,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+pub enum ConfigAction {
+    #[command(about = "Reload the configuration")]
+    Reload,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Operation {
+    ListInstances,
+    Call(Call),
+    CallOnWorkspace(WorkspaceReference, WorkspaceCall),
+    FollowEvents(TopicFilter),
+}
+
 impl Command {
-    pub fn call(&self) -> Option<Call> {
-        let call = match *self {
-            Self::Get { resource } => resource.query(),
-            Self::Focus { window } => Call::FocusWindow { window },
-            Self::Move { window, direction } => Call::MoveWindow {
-                window,
-                direction: direction.into(),
-            },
-            Self::Layout { workspace, layout } => Call::SetLayout {
-                workspace,
-                layout: layout.into(),
-            },
-            Self::Resize { window, delta } => Call::ResizeWindow { window, delta },
-            Self::Mode { window, mode } => Call::SetWindowMode {
-                window,
-                mode: mode.into(),
-            },
-            Self::Workspace { workspace } => Call::SwitchWorkspace { workspace },
-            Self::Output { action } => action.call(),
-            Self::Reload => Call::ReloadConfig,
-            Self::Lock => Call::RequestLock,
-            Self::Quit => Call::Quit,
-            Self::Subscribe => Call::Subscribe,
-            Self::Instances => return None,
-        };
-        Some(call)
+    pub fn operation(&self) -> Operation {
+        match self {
+            Self::Get { resource } => Operation::Call(resource.query()),
+            Self::Focus { window } => Operation::Call(Call::FocusWindow { window: *window }),
+            Self::Move { window, direction } => Operation::Call(Call::MoveWindow {
+                window: *window,
+                direction: (*direction).into(),
+            }),
+            Self::Layout {
+                action: LayoutAction::Set { layout, workspace },
+            } => Operation::CallOnWorkspace(
+                workspace.clone().unwrap_or(WorkspaceReference::Active),
+                WorkspaceCall::SetLayout((*layout).into()),
+            ),
+            Self::Resize { window, delta } => Operation::Call(Call::ResizeWindow {
+                window: *window,
+                delta: *delta,
+            }),
+            Self::Mode { window, mode } => Operation::Call(Call::SetWindowMode {
+                window: *window,
+                mode: (*mode).into(),
+            }),
+            Self::Workspace {
+                action: WorkspaceAction::Switch { workspace },
+            } => Operation::CallOnWorkspace(workspace.clone(), WorkspaceCall::Switch),
+            Self::Output { action } => Operation::Call(action.call()),
+            Self::Config {
+                action: ConfigAction::Reload,
+            } => Operation::Call(Call::ReloadConfig),
+            Self::Lock => Operation::Call(Call::RequestLock),
+            Self::Quit => Operation::Call(Call::Quit),
+            Self::Events { topics } => Operation::FollowEvents(TopicFilter::new(topics)),
+            Self::Instances => Operation::ListInstances,
+        }
     }
 }
 
@@ -191,23 +227,6 @@ impl From<Direction> for tilling_ipc::Direction {
             Direction::Right => Self::Right,
             Direction::Up => Self::Up,
             Direction::Down => Self::Down,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum Layout {
-    Bsp,
-    MasterStack,
-    Monocle,
-}
-
-impl From<Layout> for tilling_ipc::Layout {
-    fn from(layout: Layout) -> Self {
-        match layout {
-            Layout::Bsp => Self::Bsp,
-            Layout::MasterStack => Self::MasterStack,
-            Layout::Monocle => Self::Monocle,
         }
     }
 }
@@ -256,8 +275,8 @@ mod tests {
         Arguments::try_parse_from([&["tillingctl"], line].concat())
     }
 
-    fn call_of(line: &[&str]) -> Option<Call> {
-        parse(line).unwrap().command.call()
+    fn operation_of(line: &[&str]) -> Operation {
+        parse(line).unwrap().command.operation()
     }
 
     #[test]
@@ -274,43 +293,90 @@ mod tests {
             arguments.socket,
             Some(PathBuf::from("/run/user/1000/tilling/test/ipc.sock"))
         );
-        assert_eq!(arguments.command.call(), Some(Call::GetWorkspaces));
+        assert_eq!(
+            arguments.command.operation(),
+            Operation::Call(Call::GetWorkspaces)
+        );
         assert_eq!(arguments.timeout(), Duration::from_secs(5));
     }
 
     #[test]
     fn control_commands_carry_their_typed_parameters() {
         assert_eq!(
-            call_of(&["move", "3:1", "left"]),
-            Some(Call::MoveWindow {
+            operation_of(&["move", "3:1", "left"]),
+            Operation::Call(Call::MoveWindow {
                 window: WINDOW,
                 direction: tilling_ipc::Direction::Left,
             })
         );
         assert_eq!(
-            call_of(&["layout", "0:0", "master-stack"]),
-            Some(Call::SetLayout {
-                workspace: ResourceId {
-                    index: 0,
-                    generation: 0,
-                },
-                layout: tilling_ipc::Layout::MasterStack,
-            })
-        );
-        assert_eq!(
-            call_of(&["mode", "3:1", "fullscreen"]),
-            Some(Call::SetWindowMode {
+            operation_of(&["mode", "3:1", "fullscreen"]),
+            Operation::Call(Call::SetWindowMode {
                 window: WINDOW,
                 mode: tilling_ipc::WindowMode::Fullscreen,
             })
+        );
+        assert_eq!(
+            operation_of(&["config", "reload"]),
+            Operation::Call(Call::ReloadConfig)
+        );
+    }
+
+    #[test]
+    fn layout_targets_the_active_workspace_unless_one_is_named() {
+        let master_stack = WorkspaceCall::SetLayout(tilling_ipc::Layout::MasterStack);
+
+        assert_eq!(
+            operation_of(&["layout", "set", "master-stack"]),
+            Operation::CallOnWorkspace(WorkspaceReference::Active, master_stack)
+        );
+        assert_eq!(
+            operation_of(&["layout", "set", "master-stack", "--workspace", "web"]),
+            Operation::CallOnWorkspace(WorkspaceReference::Named("web".to_owned()), master_stack)
+        );
+    }
+
+    #[test]
+    fn workspace_switch_takes_a_name_or_an_identifier() {
+        assert_eq!(
+            operation_of(&["workspace", "switch", "2"]),
+            Operation::CallOnWorkspace(
+                WorkspaceReference::Named("2".to_owned()),
+                WorkspaceCall::Switch
+            )
+        );
+        assert_eq!(
+            operation_of(&["workspace", "switch", "3:1"]),
+            Operation::CallOnWorkspace(
+                WorkspaceReference::Identifier(WINDOW),
+                WorkspaceCall::Switch
+            )
+        );
+    }
+
+    #[test]
+    fn events_take_a_list_of_topics() {
+        assert_eq!(
+            operation_of(&["events"]),
+            Operation::FollowEvents(TopicFilter::default())
+        );
+        assert_eq!(
+            operation_of(&["events", "--topics", "windows,outputs"]),
+            Operation::FollowEvents(TopicFilter::new(&[Topic::Windows, Topic::Outputs]))
+        );
+        assert_eq!(
+            parse(&["events", "--topics", "pointer"])
+                .unwrap_err()
+                .kind(),
+            ErrorKind::InvalidValue
         );
     }
 
     #[test]
     fn resize_accepts_a_negative_step() {
         assert_eq!(
-            call_of(&["resize", "3:1", "-40"]),
-            Some(Call::ResizeWindow {
+            operation_of(&["resize", "3:1", "-40"]),
+            Operation::Call(Call::ResizeWindow {
                 window: WINDOW,
                 delta: -40,
             })
@@ -329,7 +395,7 @@ mod tests {
 
     #[test]
     fn listing_instances_needs_no_request() {
-        assert_eq!(call_of(&["instances"]), None);
+        assert_eq!(operation_of(&["instances"]), Operation::ListInstances);
     }
 
     #[test]

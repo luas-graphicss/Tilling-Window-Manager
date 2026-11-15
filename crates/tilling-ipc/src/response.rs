@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::event::EventFrame;
-use crate::resource::{ResourceId, WindowMode};
+use crate::resource::{Layout, ResourceId, WindowMode};
 use crate::version::ProtocolVersion;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -72,6 +72,10 @@ pub struct WorkspaceInfo {
     pub output: Option<ResourceId>,
     pub focused_window: Option<ResourceId>,
     pub windows: Vec<ResourceId>,
+    #[serde(default)]
+    pub layout: Layout,
+    #[serde(default)]
+    pub active: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -82,6 +86,8 @@ pub struct WindowInfo {
     pub workspace: ResourceId,
     pub mode: WindowMode,
     pub focused: bool,
+    #[serde(default)]
+    pub stashed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

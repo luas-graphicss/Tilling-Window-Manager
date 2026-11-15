@@ -8,7 +8,7 @@ use crate::geometry::{LogicalRect, Orientation, Ratio};
 use crate::identity::WindowId;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
-pub struct BspTree {
+pub(super) struct BspTree {
     root: Option<Node>,
 }
 

@@ -1,6 +1,7 @@
 use super::{Effect, TransitionError};
 use crate::desktop::DesktopState;
 use crate::identity::WorkspaceId;
+use crate::layout::LayoutKind;
 use crate::workspace::Workspace;
 
 impl DesktopState {
@@ -15,8 +16,22 @@ impl DesktopState {
             return Err(TransitionError::DuplicateWorkspaceName(name));
         }
         let owner = self.require_workspace(self.active_workspace)?.output;
-        let created = self.workspaces.insert(Workspace::new(name, owner))?;
+        let workspace = Workspace::new(name, owner, self.default_layout);
+        let created = self.workspaces.insert(workspace)?;
         Ok(vec![Effect::WorkspaceCreated(created)])
+    }
+
+    pub(super) fn set_layout(
+        &mut self,
+        workspace: WorkspaceId,
+        layout: LayoutKind,
+    ) -> Result<Vec<Effect>, TransitionError> {
+        let target = self.require_workspace_mut(workspace)?;
+        if target.layout.kind() == layout {
+            return Ok(Vec::new());
+        }
+        target.layout.set_kind(layout);
+        Ok(vec![Effect::WorkspaceArranged(workspace)])
     }
 
     pub(super) fn activate_workspace(

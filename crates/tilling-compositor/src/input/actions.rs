@@ -31,12 +31,20 @@ impl Compositor {
                     });
                 }
             }
+            Action::FocusOutput(direction) => self.run(Command::FocusOutput { direction }),
+            Action::MoveToOutput(direction) => {
+                self.run_on_focused(|window| Command::MoveWindowToOutput { window, direction });
+            }
             Action::ToggleFullscreen => self.toggle_fullscreen(),
             Action::ToggleFloating => self.toggle_floating(),
+            Action::MoveToScratchpad => self.stash_focused(),
+            Action::ToggleScratchpad => self.run(Command::ToggleScratchpad),
             Action::ToggleSplit => self.run_on_focused(|window| Command::ToggleSplit { window }),
             Action::Resize(delta) => {
                 self.run_on_focused(|window| Command::ResizeSplit { window, delta });
             }
+            Action::SetLayout(layout) => self.set_active_layout(layout),
+            Action::CycleLayout => self.cycle_layout(),
             Action::EnterMode(mode) => self.keyboard_mode = mode,
             Action::ReloadConfig => self.reload_config(),
             Action::Quit => self.stop(),
@@ -122,6 +130,9 @@ impl Compositor {
             DEFAULT_MODE.clone_into(&mut self.keyboard_mode);
         }
         self.config = config;
+        self.run(Command::SetDefaultLayout {
+            layout: self.config.layout().default,
+        });
         self.apply_keyboard_config();
         for name in self.config.workspaces().to_vec() {
             if self.workspace_named(&name).is_none() {

@@ -1,6 +1,6 @@
 use tilling_ipc::endpoint::InstanceName;
 use tilling_ipc::{
-    DiagnosticsInfo, Event, EventFrame, Outcome, OutputInfo, Reply, ResourceId, Snapshot,
+    DiagnosticsInfo, Event, EventFrame, Layout, Outcome, OutputInfo, Reply, ResourceId, Snapshot,
     WindowInfo, WindowMode, WorkspaceInfo,
 };
 
@@ -140,9 +140,15 @@ fn describe_output(output: &OutputInfo) -> String {
 
 fn describe_workspace(workspace: &WorkspaceInfo) -> String {
     format!(
-        "workspace {}  {}  output {}  focused {}  windows {}",
+        "workspace {}  {}  {}  {}  output {}  focused {}  windows {}",
         identifier(workspace.id),
         printable(&workspace.name),
+        layout_name(workspace.layout),
+        if workspace.active {
+            "active"
+        } else {
+            "inactive"
+        },
         optional(workspace.output),
         optional(workspace.focused_window),
         workspace.windows.len()
@@ -153,7 +159,11 @@ fn describe_window(window: &WindowInfo) -> String {
     format!(
         "window {}  {}  {}  workspace {}  app {}  title {}",
         identifier(window.id),
-        mode_name(window.mode),
+        if window.stashed {
+            "stashed"
+        } else {
+            mode_name(window.mode)
+        },
         if window.focused {
             "focused"
         } else {
@@ -163,6 +173,14 @@ fn describe_window(window: &WindowInfo) -> String {
         window.app_id.as_deref().map_or_else(absent, printable),
         window.title.as_deref().map_or_else(absent, printable)
     )
+}
+
+fn layout_name(layout: Layout) -> &'static str {
+    match layout {
+        Layout::Bsp => "bsp",
+        Layout::MasterStack => "master-stack",
+        Layout::Monocle => "monocle",
+    }
 }
 
 fn mode_name(mode: WindowMode) -> &'static str {
@@ -224,6 +242,7 @@ mod tests {
             workspace: WORKSPACE,
             mode: WindowMode::Tiled,
             focused: true,
+            stashed: false,
         }
     }
 
@@ -240,7 +259,27 @@ mod tests {
             }),
         };
 
-        assert_eq!(text(&reply), "tilling 0.1.0 (protocol 1.1)");
+        assert_eq!(text(&reply), "tilling 0.1.0 (protocol 1.2)");
+    }
+
+    #[test]
+    fn workspaces_name_their_layout_and_whether_they_are_active() {
+        let reply = Outcome::Success {
+            result: Reply::Workspaces(vec![WorkspaceInfo {
+                id: WORKSPACE,
+                name: "web".to_owned(),
+                output: None,
+                focused_window: Some(WINDOW),
+                windows: vec![WINDOW],
+                layout: Layout::MasterStack,
+                active: true,
+            }]),
+        };
+
+        assert_eq!(
+            text(&reply),
+            "workspace 0:0  web  master-stack  active  output -  focused 3:1  windows 1"
+        );
     }
 
     #[test]
@@ -253,6 +292,24 @@ mod tests {
             text(&reply),
             "window 3:1  tiled  focused  workspace 0:0  app org.example.Editor  title Notes\n\
              window 3:1  tiled  focused  workspace 0:0  app org.example.Editor  title Draft"
+        );
+    }
+
+    #[test]
+    fn window_in_the_scratchpad_is_listed_as_stashed() {
+        let hidden = WindowInfo {
+            mode: WindowMode::Floating,
+            focused: false,
+            stashed: true,
+            ..window("Notes")
+        };
+        let reply = Outcome::Success {
+            result: Reply::Windows(vec![hidden]),
+        };
+
+        assert_eq!(
+            text(&reply),
+            "window 3:1  stashed  unfocused  workspace 0:0  app org.example.Editor  title Notes"
         );
     }
 

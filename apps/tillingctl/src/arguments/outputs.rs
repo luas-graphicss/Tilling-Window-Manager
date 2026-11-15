@@ -138,7 +138,7 @@ mod tests {
     use clap::error::ErrorKind;
 
     use super::*;
-    use crate::arguments::Arguments;
+    use crate::arguments::{Arguments, Operation};
 
     const OUTPUT: ResourceId = ResourceId {
         index: 1,
@@ -150,7 +150,10 @@ mod tests {
     }
 
     fn call_of(line: &[&str]) -> Option<Call> {
-        parse(line).unwrap().command.call()
+        match parse(line).unwrap().command.operation() {
+            Operation::Call(call) => Some(call),
+            _ => None,
+        }
     }
 
     #[test]

@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use tilling_core::layout::Direction;
+use tilling_core::layout::{Direction, LayoutKind};
 
 use crate::applications::{CommandLine, CommandLineError};
 use crate::limits::MAX_RESIZE_STEP;
@@ -15,10 +15,16 @@ pub enum Action {
     Move(Direction),
     SwitchWorkspace(String),
     MoveToWorkspace(String),
+    FocusOutput(Direction),
+    MoveToOutput(Direction),
     ToggleFullscreen,
     ToggleFloating,
+    MoveToScratchpad,
+    ToggleScratchpad,
     ToggleSplit,
     Resize(i16),
+    SetLayout(LayoutKind),
+    CycleLayout,
     EnterMode(String),
     ReloadConfig,
     Quit,
@@ -60,13 +66,19 @@ pub(crate) fn validate(raw: RawAction, references: &References<'_>) -> Result<Ac
         RawAction::Move(direction) => Ok(Action::Move(direction.into())),
         RawAction::SwitchWorkspace(name) => references.workspace(name).map(Action::SwitchWorkspace),
         RawAction::MoveToWorkspace(name) => references.workspace(name).map(Action::MoveToWorkspace),
+        RawAction::FocusOutput(direction) => Ok(Action::FocusOutput(direction.into())),
+        RawAction::MoveToOutput(direction) => Ok(Action::MoveToOutput(direction.into())),
         RawAction::ToggleFullscreen => Ok(Action::ToggleFullscreen),
         RawAction::ToggleFloating => Ok(Action::ToggleFloating),
+        RawAction::MoveToScratchpad => Ok(Action::MoveToScratchpad),
+        RawAction::ToggleScratchpad => Ok(Action::ToggleScratchpad),
         RawAction::ToggleSplit => Ok(Action::ToggleSplit),
         RawAction::Resize(step) if step == 0 || step.unsigned_abs() > MAX_RESIZE_STEP => {
             Err(ActionError::ResizeOutOfRange)
         }
         RawAction::Resize(step) => Ok(Action::Resize(step)),
+        RawAction::SetLayout(layout) => Ok(Action::SetLayout(layout.into())),
+        RawAction::CycleLayout => Ok(Action::CycleLayout),
         RawAction::EnterMode(mode) if references.modes.contains(&mode) => {
             Ok(Action::EnterMode(mode))
         }

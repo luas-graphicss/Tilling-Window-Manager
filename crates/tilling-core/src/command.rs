@@ -1,6 +1,6 @@
 use crate::geometry::{LogicalRect, Scale};
 use crate::identity::{OutputId, WindowId, WorkspaceId};
-use crate::layout::Direction;
+use crate::layout::{Direction, LayoutKind};
 use crate::window::{WindowMetadata, WindowMode};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,6 +23,13 @@ pub enum Command {
     },
     SwitchWorkspace {
         workspace: WorkspaceId,
+    },
+    SetLayout {
+        workspace: WorkspaceId,
+        layout: LayoutKind,
+    },
+    SetDefaultLayout {
+        layout: LayoutKind,
     },
     OpenWindow {
         metadata: WindowMetadata,
@@ -54,6 +61,18 @@ pub enum Command {
     ChangeWindowMode {
         window: WindowId,
         change: ModeChange,
+    },
+    StashWindow {
+        window: WindowId,
+        area: LogicalRect,
+    },
+    ToggleScratchpad,
+    FocusOutput {
+        direction: Direction,
+    },
+    MoveWindowToOutput {
+        window: WindowId,
+        direction: Direction,
     },
     ToggleSplit {
         window: WindowId,

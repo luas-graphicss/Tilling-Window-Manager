@@ -1,3 +1,5 @@
+pub(crate) mod adjacency;
+
 use serde::Serialize;
 
 use crate::geometry::{LogicalRect, Scale};

@@ -1,5 +1,5 @@
 use tilling_core::geometry::{LogicalRect, Scale};
-use tilling_core::layout::{Direction, Gaps};
+use tilling_core::layout::{Direction, Gaps, LayoutKind};
 use tilling_core::{
     Command, DesktopState, ModeChange, OutputId, RestoreMode, Transition, TransitionError,
     WindowId, WindowMetadata, WindowMode, WorkspaceId,
@@ -20,6 +20,11 @@ const DIRECTIONS: [Direction; 4] = [
     Direction::Right,
     Direction::Up,
     Direction::Down,
+];
+const LAYOUTS: [LayoutKind; 3] = [
+    LayoutKind::Bsp,
+    LayoutKind::MasterStack,
+    LayoutKind::Monocle,
 ];
 
 type Outcome = Result<Transition, TransitionError>;
@@ -123,7 +128,13 @@ fn check_placements(
         .collect();
     placed.sort_unstable();
     placed.dedup();
-    if placed.len() != workspace.windows().len() || placed.len() != placements.len() {
+    let tiled = workspace.layout().windows().len();
+    let shown_tiles = match workspace.layout().kind() {
+        LayoutKind::Bsp | LayoutKind::MasterStack => tiled,
+        LayoutKind::Monocle => tiled.min(1),
+    };
+    let expected = workspace.windows().len() - tiled + shown_tiles;
+    if placed.len() != expected || placed.len() != placements.len() {
         return Err("windows are not placed exactly once".to_owned());
     }
     let tiles: Vec<LogicalRect> = placements
@@ -171,7 +182,8 @@ fn generate(random: &mut Random, state: &DesktopState, retired: &[WindowId]) -> 
     let window = stale.or_else(|| random.pick(&windows));
     let workspace = random.pick(&workspaces);
     let direction = random.pick(&DIRECTIONS).unwrap_or(Direction::Left);
-    match (random.below(18), window, workspace) {
+    let layout = random.pick(&LAYOUTS).unwrap_or_default();
+    match (random.below(24), window, workspace) {
         (0..=4, _, _) if windows.len() < WINDOW_BUDGET => open_window(random, &windows, workspace),
         (0..=6, Some(window), _) => Command::CloseWindow { window },
         (7, Some(window), _) => Command::FocusWindow { window },
@@ -196,6 +208,15 @@ fn generate(random: &mut Random, state: &DesktopState, retired: &[WindowId]) -> 
             window,
             metadata: metadata(random),
         },
+        (18, _, Some(workspace)) => Command::SetLayout { workspace, layout },
+        (19, _, _) => Command::SetDefaultLayout { layout },
+        (20, Some(window), _) => Command::StashWindow {
+            window,
+            area: random_area(random),
+        },
+        (21, _, _) => Command::ToggleScratchpad,
+        (22, _, _) => Command::FocusOutput { direction },
+        (23, Some(window), _) => Command::MoveWindowToOutput { window, direction },
         _ => open_window(random, &windows, workspace),
     }
 }

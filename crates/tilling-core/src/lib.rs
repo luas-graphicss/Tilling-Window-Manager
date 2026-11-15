@@ -6,6 +6,7 @@ mod identity;
 mod invariant;
 pub mod layout;
 mod output;
+mod scratchpad;
 mod transition;
 mod window;
 mod workspace;

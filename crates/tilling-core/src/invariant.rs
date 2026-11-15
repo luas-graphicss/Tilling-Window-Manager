@@ -9,8 +9,10 @@ pub enum InvariantViolation {
     MissingActiveWorkspace(WorkspaceId),
     #[error("active workspace {0} is not shown on any output")]
     HiddenActiveWorkspace(WorkspaceId),
-    #[error("workspaces list {listed} windows but {existing} exist")]
+    #[error("workspaces and the scratchpad hold {listed} windows but {existing} exist")]
     WindowCountMismatch { listed: usize, existing: usize },
+    #[error("window {0} does not match its place in the scratchpad")]
+    ScratchpadMismatch(WindowId),
     #[error("window {0} is transient for a window that does not exist")]
     DanglingTransientParent(WindowId),
     #[error("workspace {0} lists a window it does not own exactly once")]
@@ -37,6 +39,7 @@ impl DesktopState {
             self.verify_workspace(id, workspace)?;
         }
         self.verify_workspace_names()?;
+        self.verify_scratchpad()?;
         self.verify_outputs()
     }
 
@@ -61,11 +64,12 @@ impl DesktopState {
     }
 
     fn verify_windows(&self) -> Result<(), InvariantViolation> {
-        let listed = self
+        let attached: usize = self
             .workspaces
             .iter()
             .map(|(_, workspace)| workspace.windows.len())
             .sum();
+        let listed = attached + self.scratchpad.stashed().len();
         let existing = self.windows.len();
         if listed != existing {
             return Err(InvariantViolation::WindowCountMismatch { listed, existing });
@@ -125,6 +129,35 @@ impl DesktopState {
             return Err(InvariantViolation::DanglingOwner(id));
         }
         Ok(())
+    }
+
+    fn verify_scratchpad(&self) -> Result<(), InvariantViolation> {
+        let attached = |window: WindowId| {
+            self.windows
+                .get(window)
+                .and_then(|entry| self.workspaces.get(entry.workspace))
+                .is_some_and(|workspace| workspace.windows.contains(&window))
+        };
+        let floats = |window: WindowId| {
+            self.windows
+                .get(window)
+                .is_some_and(|entry| entry.mode.floating_area().is_some())
+        };
+        let (stashed, summoned) = (self.scratchpad.stashed(), self.scratchpad.summoned());
+        let members = sorted(stashed.iter().chain(summoned).copied().collect());
+        let repeated = members
+            .iter()
+            .zip(members.iter().skip(1))
+            .find(|(a, b)| a == b);
+        let misplaced = repeated
+            .map(|(window, _)| window)
+            .or_else(|| stashed.iter().find(|window| attached(**window)))
+            .or_else(|| summoned.iter().find(|window| !attached(**window)))
+            .or_else(|| members.iter().find(|window| !floats(**window)));
+        match misplaced {
+            Some(window) => Err(InvariantViolation::ScratchpadMismatch(*window)),
+            None => Ok(()),
+        }
     }
 
     fn verify_workspace_names(&self) -> Result<(), InvariantViolation> {

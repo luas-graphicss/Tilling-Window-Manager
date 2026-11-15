@@ -1,9 +1,11 @@
 pub(crate) const ESCAPE: u32 = 1;
 pub(crate) const DIGIT_1: u32 = 2;
 pub(crate) const DIGIT_2: u32 = 3;
+pub(crate) const MINUS: u32 = 12;
 pub(crate) const Q: u32 = 16;
 pub(crate) const R: u32 = 19;
 pub(crate) const T: u32 = 20;
+pub(crate) const CONTROL: u32 = 29;
 pub(crate) const A: u32 = 30;
 pub(crate) const F: u32 = 33;
 pub(crate) const H: u32 = 35;

@@ -1,5 +1,6 @@
+use tilling_core::layout::LayoutKind;
 use tilling_core::{DesktopState, Output, OutputId, Window, WindowId, Workspace, WorkspaceId};
-use tilling_ipc::{OutputInfo, WindowInfo, WindowMode, WorkspaceInfo};
+use tilling_ipc::{Layout, OutputInfo, WindowInfo, WindowMode, WorkspaceInfo};
 
 use super::resources::{output_id, window_id, workspace_id};
 
@@ -27,17 +28,23 @@ pub(super) fn output(id: OutputId, output: &Output) -> OutputInfo {
 pub(super) fn workspaces(desktop: &DesktopState) -> Vec<WorkspaceInfo> {
     desktop
         .workspaces()
-        .map(|(id, described)| workspace(id, described))
+        .map(|(id, described)| workspace(desktop, id, described))
         .collect()
 }
 
-pub(super) fn workspace(id: WorkspaceId, workspace: &Workspace) -> WorkspaceInfo {
+pub(super) fn workspace(
+    desktop: &DesktopState,
+    id: WorkspaceId,
+    workspace: &Workspace,
+) -> WorkspaceInfo {
     WorkspaceInfo {
         id: workspace_id(id),
         name: workspace.name().to_owned(),
         output: workspace.output().map(output_id),
         focused_window: workspace.focused_window().map(window_id),
         windows: workspace.windows().iter().copied().map(window_id).collect(),
+        layout: layout(workspace.layout().kind()),
+        active: desktop.active_workspace() == id,
     }
 }
 
@@ -57,6 +64,15 @@ pub(super) fn window(desktop: &DesktopState, id: WindowId, window: &Window) -> W
         workspace: workspace_id(window.workspace()),
         mode: mode(window.mode()),
         focused: desktop.focused_window() == Some(id),
+        stashed: desktop.is_stashed(id),
+    }
+}
+
+fn layout(kind: LayoutKind) -> Layout {
+    match kind {
+        LayoutKind::Bsp => Layout::Bsp,
+        LayoutKind::MasterStack => Layout::MasterStack,
+        LayoutKind::Monocle => Layout::Monocle,
     }
 }
 
