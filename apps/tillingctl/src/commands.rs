@@ -2,11 +2,12 @@ use std::io::{self, Write};
 use std::process::ExitCode;
 
 use tilling_ipc::client::{Client, ClientError};
-use tilling_ipc::{Call, Event, Outcome};
+use tilling_ipc::{Call, Event, Outcome, Reply, ResourceId};
 
-use crate::arguments::Arguments;
+use crate::arguments::{Arguments, Operation, WorkspaceReference};
 use crate::output::{self, Format};
 use crate::target::{self, Environment, TargetError};
+use crate::topics::TopicFilter;
 
 const REFUSED_EXIT_CODE: u8 = 1;
 
@@ -22,6 +23,8 @@ pub enum CommandError {
     Encode(#[from] serde_json::Error),
     #[error("the compositor dropped events, subscribe again for a fresh snapshot")]
     EventsDropped,
+    #[error("the compositor did not list its workspaces when asked")]
+    WorkspacesNotListed,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,27 +49,62 @@ pub fn run(arguments: &Arguments, environment: &Environment) -> Result<Status, C
         Format::Text
     };
     let mut standard_output = io::stdout().lock();
-    let Some(call) = arguments.command.call() else {
-        let instances = target::running_instances(environment)?;
-        print(
-            &mut standard_output,
-            &output::instances(&instances, format)?,
-        )?;
-        return Ok(Status::Done);
-    };
+    match arguments.command.operation() {
+        Operation::ListInstances => {
+            let instances = target::running_instances(environment)?;
+            let listed = output::instances(&instances, format)?;
+            print(&mut standard_output, &listed)?;
+            Ok(Status::Done)
+        }
+        Operation::Call(call) => {
+            let mut client = connect(arguments, environment)?;
+            let outcome = client.call(call, arguments.if_revision)?;
+            report(&mut standard_output, &outcome, format)
+        }
+        Operation::CallOnWorkspace(reference, call) => {
+            let mut client = connect(arguments, environment)?;
+            let outcome = match find_workspace(&mut client, &reference)? {
+                Ok(workspace) => client.call(call.on(workspace), arguments.if_revision)?,
+                Err(refusal) => refusal,
+            };
+            report(&mut standard_output, &outcome, format)
+        }
+        Operation::FollowEvents(topics) => {
+            let mut client = connect(arguments, environment)?;
+            let subscribed = client.call(Call::Subscribe, arguments.if_revision)?;
+            let status = report(&mut standard_output, &topics.narrow(subscribed), format)?;
+            if status == Status::Done {
+                follow(&mut client, &mut standard_output, format, &topics)?;
+            }
+            Ok(status)
+        }
+    }
+}
+
+fn connect(arguments: &Arguments, environment: &Environment) -> Result<Client, CommandError> {
     let socket = target::resolve(
         arguments.socket.as_ref(),
         arguments.instance.as_ref(),
         environment,
     )?;
-    let mut client = Client::connect(&socket, arguments.timeout())?;
-    let follows_events = call == Call::Subscribe;
-    let outcome = client.call(call, arguments.if_revision)?;
-    let status = report(&mut standard_output, &outcome, format)?;
-    if status == Status::Done && follows_events {
-        follow(&mut client, &mut standard_output, format)?;
+    Ok(Client::connect(&socket, arguments.timeout())?)
+}
+
+fn find_workspace(
+    client: &mut Client,
+    reference: &WorkspaceReference,
+) -> Result<Result<ResourceId, Outcome>, CommandError> {
+    match client.call(Call::GetWorkspaces, None)? {
+        Outcome::Success {
+            result: Reply::Workspaces(workspaces),
+        } => Ok(reference
+            .find(&workspaces)
+            .ok_or_else(|| Outcome::NotFound {
+                message: reference.missing(),
+            })),
+        Outcome::Success { .. } => Err(CommandError::WorkspacesNotListed),
+        refusal => Ok(Err(refusal)),
     }
-    Ok(status)
 }
 
 fn report(
@@ -90,6 +128,7 @@ fn follow(
     client: &mut Client,
     standard_output: &mut impl Write,
     format: Format,
+    topics: &TopicFilter,
 ) -> Result<(), CommandError> {
     loop {
         let frame = match client.next_event() {
@@ -97,6 +136,9 @@ fn follow(
             Err(ClientError::Closed) => return Ok(()),
             Err(failure) => return Err(failure.into()),
         };
+        if !topics.admits(&frame.event) {
+            continue;
+        }
         print(standard_output, &output::event(&frame, format)?)?;
         if frame.event == Event::EventsDropped {
             return Err(CommandError::EventsDropped);
