@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use crate::focus::FocusOrder;
 use crate::identity::{OutputId, WindowId};
-use crate::layout::{BspTree, LayoutError};
+use crate::layout::{Layout, LayoutError, LayoutKind};
 use crate::window::WindowMode;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -18,18 +18,18 @@ pub struct Workspace {
     pub(crate) former_output: Option<FormerOutput>,
     pub(crate) windows: Vec<WindowId>,
     pub(crate) focus: FocusOrder,
-    pub(crate) layout: BspTree,
+    pub(crate) layout: Layout,
 }
 
 impl Workspace {
-    pub(crate) fn new(name: String, output: Option<OutputId>) -> Self {
+    pub(crate) fn new(name: String, output: Option<OutputId>, layout: LayoutKind) -> Self {
         Self {
             name,
             output,
             former_output: None,
             windows: Vec::new(),
             focus: FocusOrder::default(),
-            layout: BspTree::default(),
+            layout: Layout::new(layout),
         }
     }
 
@@ -54,8 +54,17 @@ impl Workspace {
     }
 
     #[must_use]
-    pub fn layout(&self) -> &BspTree {
+    pub fn layout(&self) -> &Layout {
         &self.layout
+    }
+
+    pub(crate) fn front_tile(&self) -> Option<WindowId> {
+        self.focus
+            .windows()
+            .iter()
+            .rev()
+            .copied()
+            .find(|window| self.layout.contains(*window))
     }
 
     pub(crate) fn attach(&mut self, window: WindowId, mode: WindowMode) -> Result<(), LayoutError> {

@@ -107,6 +107,11 @@ impl DesktopState {
             Command::RemoveOutput { output } => self.remove_output(output),
             Command::CreateWorkspace { name } => self.create_workspace(name),
             Command::SwitchWorkspace { workspace } => self.activate_workspace(workspace),
+            Command::SetLayout { workspace, layout } => self.set_layout(workspace, layout),
+            Command::SetDefaultLayout { layout } => {
+                self.default_layout = layout;
+                Ok(Vec::new())
+            }
             Command::OpenWindow {
                 metadata,
                 workspace,

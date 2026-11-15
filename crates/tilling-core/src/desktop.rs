@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use crate::identity::{Arena, OutputId, WindowId, WorkspaceId};
-use crate::layout::{Gaps, Placement};
+use crate::layout::{Gaps, LayoutKind, Placement};
 use crate::output::Output;
 use crate::window::{Window, WindowMode};
 use crate::workspace::Workspace;
@@ -12,19 +12,22 @@ pub struct DesktopState {
     pub(crate) workspaces: Arena<WorkspaceId, Workspace>,
     pub(crate) outputs: Arena<OutputId, Output>,
     pub(crate) active_workspace: WorkspaceId,
+    pub(crate) default_layout: LayoutKind,
     pub(crate) revision: u64,
 }
 
 impl DesktopState {
     #[must_use]
     pub fn new(initial_workspace: impl Into<String>) -> Self {
-        let initial = Workspace::new(initial_workspace.into(), None);
+        let default_layout = LayoutKind::default();
+        let initial = Workspace::new(initial_workspace.into(), None, default_layout);
         let (workspaces, active_workspace) = Arena::with_initial(initial);
         Self {
             windows: Arena::new(),
             workspaces,
             outputs: Arena::new(),
             active_workspace,
+            default_layout,
             revision: 0,
         }
     }
@@ -85,7 +88,11 @@ impl DesktopState {
         let mode_of = |window: WindowId| self.windows.get(window).map(|window| window.mode);
         let tiles = workspace
             .layout
-            .arrange(output.area.shrink(gaps.outer), gaps.inner)
+            .arrange(
+                output.area.shrink(gaps.outer),
+                gaps.inner,
+                workspace.front_tile(),
+            )
             .into_iter()
             .filter(|placement| mode_of(placement.window) == Some(WindowMode::Tiled));
         let floating = workspace.windows.iter().filter_map(|window| {

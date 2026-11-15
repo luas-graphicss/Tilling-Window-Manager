@@ -21,7 +21,8 @@ impl DesktopState {
             existing
         } else {
             let name = self.unused_workspace_name();
-            let created = self.workspaces.insert(Workspace::new(name, None))?;
+            let workspace = Workspace::new(name, None, self.default_layout);
+            let created = self.workspaces.insert(workspace)?;
             effects.push(Effect::WorkspaceCreated(created));
             created
         };
