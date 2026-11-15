@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use wayland_client::protocol::wl_pointer::WlPointer;
 use wayland_protocols::xdg::shell::client::xdg_toplevel::State;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,7 +75,8 @@ pub(crate) struct ToplevelRecord {
 #[derive(Debug, Default)]
 pub(crate) struct SeatLog {
     pub(crate) has_keyboard: bool,
-    pub(crate) has_pointer: bool,
+    pub(crate) pointer: Option<WlPointer>,
+    pub(crate) enter_serial: Option<u32>,
     pub(crate) keyboard_focus: Option<usize>,
     pub(crate) keyboard_popup: Option<usize>,
     pub(crate) keys: Vec<KeyEvent>,

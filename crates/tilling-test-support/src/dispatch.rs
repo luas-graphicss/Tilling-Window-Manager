@@ -37,24 +37,12 @@ impl Dispatch<WlRegistry, GlobalListContents> for ClientState {
     }
 }
 
-impl Dispatch<WlSurface, usize> for ClientState {
+impl<Role: Send + Sync + 'static> Dispatch<WlSurface, Role> for ClientState {
     fn event(
         _state: &mut Self,
         _surface: &WlSurface,
         _event: wl_surface::Event,
-        _toplevel: &usize,
-        _connection: &Connection,
-        _queue: &QueueHandle<Self>,
-    ) {
-    }
-}
-
-impl Dispatch<WlSurface, PopupIndex> for ClientState {
-    fn event(
-        _state: &mut Self,
-        _surface: &WlSurface,
-        _event: wl_surface::Event,
-        _popup: &PopupIndex,
+        _role: &Role,
         _connection: &Connection,
         _queue: &QueueHandle<Self>,
     ) {
@@ -201,9 +189,8 @@ impl Dispatch<WlSeat, ()> for ClientState {
             seat.get_keyboard(queue, ());
             state.seat.has_keyboard = true;
         }
-        if capabilities.contains(Capability::Pointer) && !state.seat.has_pointer {
-            seat.get_pointer(queue, ());
-            state.seat.has_pointer = true;
+        if capabilities.contains(Capability::Pointer) && state.seat.pointer.is_none() {
+            state.seat.pointer = Some(seat.get_pointer(queue, ()));
         }
     }
 }
@@ -250,11 +237,12 @@ impl Dispatch<WlPointer, ()> for ClientState {
     ) {
         match event {
             wl_pointer::Event::Enter {
+                serial,
                 surface,
                 surface_x,
                 surface_y,
-                ..
             } => {
+                state.seat.enter_serial = Some(serial);
                 state.seat.pointer_focus = toplevel_of(&surface);
                 state.seat.pointer_position = Some((surface_x, surface_y));
             }

@@ -49,6 +49,7 @@ pub struct Client {
     pub(crate) seat: WlSeat,
     toplevels: Vec<Option<Toplevel>>,
     pub(crate) popups: Vec<Option<Popup>>,
+    cursor: Option<(WlSurface, WlBuffer)>,
 }
 
 impl Client {
@@ -93,6 +94,7 @@ impl Client {
             seat,
             toplevels: Vec::new(),
             popups: Vec::new(),
+            cursor: None,
         })
     }
 
@@ -207,6 +209,23 @@ impl Client {
         self.toplevel(toplevel)?
             .role
             .resize(&self.seat, serial, edge);
+        self.roundtrip()
+    }
+
+    pub fn set_cursor(&mut self, size: u32, hotspot: i32) -> Result<(), ClientError> {
+        let (Some(pointer), Some(serial)) = (
+            self.state.seat.pointer.clone(),
+            self.state.seat.enter_serial,
+        ) else {
+            return Err(ClientError::PointerOutside);
+        };
+        let handle = self.queue.handle();
+        let surface = self.compositor.create_surface(&handle, ());
+        let buffer = buffer::create(&self.shm, &handle, size, size)?;
+        pointer.set_cursor(serial, Some(&surface), hotspot, hotspot);
+        surface.attach(Some(&buffer), 0, 0);
+        surface.commit();
+        self.cursor = Some((surface, buffer));
         self.roundtrip()
     }
 

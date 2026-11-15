@@ -33,6 +33,8 @@ pub enum ClientError {
     DestroyedPopup,
     #[error("no pointer button event was received yet")]
     NoButtonSerial,
+    #[error("pointer has not entered a surface of this client")]
+    PointerOutside,
     #[error("timed out waiting for {0}")]
     Timeout(&'static str),
 }
