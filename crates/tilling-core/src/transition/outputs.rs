@@ -1,8 +1,9 @@
 use super::{Effect, TransitionError};
 use crate::desktop::DesktopState;
 use crate::geometry::{LogicalRect, Scale};
-use crate::identity::{OutputId, WorkspaceId};
-use crate::output::Output;
+use crate::identity::{OutputId, WindowId, WorkspaceId};
+use crate::layout::Direction;
+use crate::output::{Output, adjacency};
 use crate::workspace::{FormerOutput, Workspace};
 
 impl DesktopState {
@@ -92,6 +93,46 @@ impl DesktopState {
             });
         }
         Ok(effects)
+    }
+
+    pub(super) fn focus_output(
+        &mut self,
+        direction: Direction,
+    ) -> Result<Vec<Effect>, TransitionError> {
+        let origin = self.require_workspace(self.active_workspace)?.output;
+        match self.workspace_toward(origin, direction) {
+            Some(workspace) => self.activate_workspace(workspace),
+            None => Ok(Vec::new()),
+        }
+    }
+
+    pub(super) fn move_window_to_output(
+        &mut self,
+        window: WindowId,
+        direction: Direction,
+    ) -> Result<Vec<Effect>, TransitionError> {
+        let workspace = self.require_placed(window)?.workspace;
+        let origin = self.require_workspace(workspace)?.output;
+        match self.workspace_toward(origin, direction) {
+            Some(workspace) => self.move_window_to_workspace(window, workspace),
+            None => Ok(Vec::new()),
+        }
+    }
+
+    fn workspace_toward(
+        &self,
+        origin: Option<OutputId>,
+        direction: Direction,
+    ) -> Option<WorkspaceId> {
+        let origin = origin?;
+        let area = self.outputs.get(origin)?.area;
+        let others = self
+            .outputs
+            .iter()
+            .filter(|(candidate, _)| *candidate != origin)
+            .map(|(candidate, output)| (candidate, output.area));
+        let target = adjacency::nearest(area, direction, others)?;
+        Some(self.outputs.get(target)?.workspace)
     }
 
     fn workspaces_returning_to(&self, name: &str) -> Vec<WorkspaceId> {

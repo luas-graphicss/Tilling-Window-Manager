@@ -183,7 +183,7 @@ fn generate(random: &mut Random, state: &DesktopState, retired: &[WindowId]) -> 
     let workspace = random.pick(&workspaces);
     let direction = random.pick(&DIRECTIONS).unwrap_or(Direction::Left);
     let layout = random.pick(&LAYOUTS).unwrap_or_default();
-    match (random.below(20), window, workspace) {
+    match (random.below(24), window, workspace) {
         (0..=4, _, _) if windows.len() < WINDOW_BUDGET => open_window(random, &windows, workspace),
         (0..=6, Some(window), _) => Command::CloseWindow { window },
         (7, Some(window), _) => Command::FocusWindow { window },
@@ -210,6 +210,13 @@ fn generate(random: &mut Random, state: &DesktopState, retired: &[WindowId]) -> 
         },
         (18, _, Some(workspace)) => Command::SetLayout { workspace, layout },
         (19, _, _) => Command::SetDefaultLayout { layout },
+        (20, Some(window), _) => Command::StashWindow {
+            window,
+            area: random_area(random),
+        },
+        (21, _, _) => Command::ToggleScratchpad,
+        (22, _, _) => Command::FocusOutput { direction },
+        (23, Some(window), _) => Command::MoveWindowToOutput { window, direction },
         _ => open_window(random, &windows, workspace),
     }
 }

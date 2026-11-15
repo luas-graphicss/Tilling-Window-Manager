@@ -111,6 +111,24 @@ impl<Unit> Rect<Unit> {
     }
 
     #[must_use]
+    pub fn fitted_within(&self, bounds: &Self) -> Self {
+        if bounds.contains(self) {
+            return Self { ..*self };
+        }
+        let width = self.width.min(bounds.width);
+        let height = self.height.min(bounds.height);
+        Self {
+            x: bounds.x.saturating_add_unsigned((bounds.width - width) / 2),
+            y: bounds
+                .y
+                .saturating_add_unsigned((bounds.height - height) / 2),
+            width,
+            height,
+            unit: PhantomData,
+        }
+    }
+
+    #[must_use]
     pub fn split(&self, orientation: Orientation, ratio: Ratio, gap: u32) -> (Self, Self) {
         match orientation {
             Orientation::SideBySide => {
@@ -208,6 +226,23 @@ mod tests {
 
         assert_eq!(shrunk, logical(12, 18, 1, 84));
         assert_eq!(logical(0, 0, 0, 0).shrink(8), logical(0, 0, 0, 0));
+    }
+
+    #[test]
+    fn fitting_keeps_a_contained_rectangle_and_centers_any_other() {
+        let bounds = logical(1920, 0, 1280, 720);
+
+        assert_eq!(
+            logical(2000, 100, 400, 300).fitted_within(&bounds),
+            logical(2000, 100, 400, 300)
+        );
+        assert_eq!(
+            logical(100, 100, 400, 300).fitted_within(&bounds),
+            logical(2360, 210, 400, 300)
+        );
+        assert_eq!(logical(0, 0, 4000, 300).fitted_within(&bounds), {
+            logical(1920, 210, 1280, 300)
+        });
     }
 
     #[test]

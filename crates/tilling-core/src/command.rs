@@ -62,6 +62,18 @@ pub enum Command {
         window: WindowId,
         change: ModeChange,
     },
+    StashWindow {
+        window: WindowId,
+        area: LogicalRect,
+    },
+    ToggleScratchpad,
+    FocusOutput {
+        direction: Direction,
+    },
+    MoveWindowToOutput {
+        window: WindowId,
+        direction: Direction,
+    },
     ToggleSplit {
         window: WindowId,
     },

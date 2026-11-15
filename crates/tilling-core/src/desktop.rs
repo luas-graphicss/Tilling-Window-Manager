@@ -3,6 +3,7 @@ use serde::Serialize;
 use crate::identity::{Arena, OutputId, WindowId, WorkspaceId};
 use crate::layout::{Gaps, LayoutKind, Placement};
 use crate::output::Output;
+use crate::scratchpad::Scratchpad;
 use crate::window::{Window, WindowMode};
 use crate::workspace::Workspace;
 
@@ -13,6 +14,7 @@ pub struct DesktopState {
     pub(crate) outputs: Arena<OutputId, Output>,
     pub(crate) active_workspace: WorkspaceId,
     pub(crate) default_layout: LayoutKind,
+    pub(crate) scratchpad: Scratchpad,
     pub(crate) revision: u64,
 }
 
@@ -28,6 +30,7 @@ impl DesktopState {
             outputs: Arena::new(),
             active_workspace,
             default_layout,
+            scratchpad: Scratchpad::default(),
             revision: 0,
         }
     }
@@ -77,6 +80,11 @@ impl DesktopState {
             return None;
         }
         workspace.focus.current()
+    }
+
+    #[must_use]
+    pub fn is_stashed(&self, window: WindowId) -> bool {
+        self.scratchpad.is_stashed(window)
     }
 
     #[must_use]

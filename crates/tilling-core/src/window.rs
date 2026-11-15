@@ -27,6 +27,23 @@ impl WindowMode {
     pub const fn occupies_tile(self) -> bool {
         matches!(self, Self::Tiled | Self::Fullscreen(RestoreMode::Tiled))
     }
+
+    pub(crate) const fn floating_area(self) -> Option<LogicalRect> {
+        match self {
+            Self::Floating(area) | Self::Fullscreen(RestoreMode::Floating(area)) => Some(area),
+            Self::Tiled | Self::Fullscreen(RestoreMode::Tiled) => None,
+        }
+    }
+
+    pub(crate) fn fitted_within(self, bounds: &LogicalRect) -> Self {
+        match self {
+            Self::Floating(area) => Self::Floating(area.fitted_within(bounds)),
+            Self::Fullscreen(RestoreMode::Floating(area)) => {
+                Self::Fullscreen(RestoreMode::Floating(area.fitted_within(bounds)))
+            }
+            Self::Tiled | Self::Fullscreen(RestoreMode::Tiled) => self,
+        }
+    }
 }
 
 impl From<RestoreMode> for WindowMode {
