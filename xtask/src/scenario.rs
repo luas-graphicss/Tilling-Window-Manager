@@ -16,6 +16,7 @@ pub enum Scenario {
     FractionalScale,
     SeatReactivation,
     RendererFallback,
+    ReleaseJourney,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,6 +44,7 @@ impl Scenario {
             Self::FractionalScale => "fractional-scale",
             Self::SeatReactivation => "seat-reactivation",
             Self::RendererFallback => "renderer-fallback",
+            Self::ReleaseJourney => "release-journey",
         }
     }
 
@@ -63,7 +65,8 @@ impl Scenario {
             | Self::OutputRollback
             | Self::FractionalScale
             | Self::SeatReactivation
-            | Self::RendererFallback => &[],
+            | Self::RendererFallback
+            | Self::ReleaseJourney => &[],
         }
     }
 }

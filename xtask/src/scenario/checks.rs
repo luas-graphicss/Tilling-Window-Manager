@@ -79,6 +79,33 @@ impl Scenario {
                     disruptive: false,
                 },
             ],
+            Self::ReleaseJourney => &[
+                Check {
+                    action: "install the package on a clean machine and start the Tilling session from the display manager",
+                    expectation: "the session comes up and `Super+Return` opens the configured terminal",
+                    disruptive: true,
+                },
+                Check {
+                    action: "open three windows and go through the layouts with `Super+space`",
+                    expectation: "each layout shows the windows without overlap and focus follows `Super+h` and `Super+l`",
+                    disruptive: false,
+                },
+                Check {
+                    action: "put a syntax error in the configuration file and press `Super+Shift+c`",
+                    expectation: "every binding still works and `tillingctl config reload` names the broken line",
+                    disruptive: false,
+                },
+                Check {
+                    action: "press `Super+Shift+e`",
+                    expectation: "the session ends, every client exits and the display manager returns",
+                    disruptive: true,
+                },
+                Check {
+                    action: "remove the package",
+                    expectation: "no file of the package remains and `~/.config/tilling` is untouched",
+                    disruptive: false,
+                },
+            ],
         }
     }
 }
@@ -97,6 +124,7 @@ mod tests {
             Scenario::FractionalScale,
             Scenario::SeatReactivation,
             Scenario::RendererFallback,
+            Scenario::ReleaseJourney,
         ];
 
         for scenario in Scenario::value_variants() {
@@ -126,5 +154,6 @@ mod tests {
         assert_eq!(disruptive(Scenario::SeatReactivation), 2);
         assert_eq!(disruptive(Scenario::OutputRollback), 1);
         assert_eq!(disruptive(Scenario::FractionalScale), 0);
+        assert_eq!(disruptive(Scenario::ReleaseJourney), 2);
     }
 }

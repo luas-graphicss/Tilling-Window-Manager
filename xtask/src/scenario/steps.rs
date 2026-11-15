@@ -125,6 +125,29 @@ impl Scenario {
                     "backend::drm::frame_clock::",
                 ],
             }],
+            Self::ReleaseJourney => &[
+                Step {
+                    package: "tilling",
+                    target: Target::Integration("cli"),
+                    filters: &[],
+                },
+                Step {
+                    package: "tillingctl",
+                    target: Target::Integration("cli"),
+                    filters: &[],
+                },
+                Step {
+                    package: COMPOSITOR,
+                    target: HEADLESS,
+                    filters: &[
+                        "lifecycle::",
+                        "tiling::",
+                        "layouts::",
+                        "scratchpad::",
+                        "control::",
+                    ],
+                },
+            ],
         }
     }
 }
