@@ -264,14 +264,22 @@ impl Client {
         width: u32,
         height: u32,
     ) -> Result<(), ClientError> {
-        let buffer = buffer::create(&self.shm, &self.queue.handle(), width, height)?;
-        let target = self.toplevel_mut(toplevel)?;
-        target.surface.attach(Some(&buffer), 0, 0);
-        target.surface.damage_buffer(0, 0, i32::MAX, i32::MAX);
-        if let Some(previous) = target.buffer.replace(buffer) {
+        if let Some(previous) = self.swap_buffer(toplevel, width, height)? {
             previous.destroy();
         }
         Ok(())
+    }
+
+    pub fn replace_buffer(
+        &mut self,
+        toplevel: ToplevelId,
+        width: u32,
+        height: u32,
+    ) -> Result<(), ClientError> {
+        let previous = self.swap_buffer(toplevel, width, height)?;
+        self.state.retired_buffers.extend(previous);
+        self.commit(toplevel)?;
+        self.roundtrip()
     }
 
     pub fn attach_buffer_beyond_its_pool(
@@ -460,6 +468,19 @@ impl Client {
             size => size,
         };
         self.attach(toplevel, width, height)
+    }
+
+    fn swap_buffer(
+        &mut self,
+        toplevel: ToplevelId,
+        width: u32,
+        height: u32,
+    ) -> Result<Option<WlBuffer>, ClientError> {
+        let buffer = buffer::create(&self.shm, &self.queue.handle(), width, height)?;
+        let target = self.toplevel_mut(toplevel)?;
+        target.surface.attach(Some(&buffer), 0, 0);
+        target.surface.damage_buffer(0, 0, i32::MAX, i32::MAX);
+        Ok(target.buffer.replace(buffer))
     }
 
     fn toplevel(&self, toplevel: ToplevelId) -> Result<&Toplevel, ClientError> {

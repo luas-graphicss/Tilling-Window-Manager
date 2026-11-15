@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_pointer::WlPointer;
 use wayland_protocols::xdg::shell::client::xdg_toplevel::{State, WmCapabilities};
 
@@ -101,6 +102,19 @@ pub(crate) struct ClientState {
     pub(crate) popups: Vec<PopupRecord>,
     pub(crate) seat: SeatLog,
     pub(crate) released_buffers: usize,
+    pub(crate) retired_buffers: Vec<WlBuffer>,
+}
+
+impl ClientState {
+    pub(crate) fn destroy_retired(&mut self, released: &WlBuffer) {
+        let retired = self
+            .retired_buffers
+            .iter()
+            .position(|buffer| buffer == released);
+        if let Some(position) = retired {
+            self.retired_buffers.swap_remove(position).destroy();
+        }
+    }
 }
 
 impl ProposedState {

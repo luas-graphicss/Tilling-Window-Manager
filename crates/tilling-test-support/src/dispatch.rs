@@ -53,7 +53,7 @@ impl<Role: Send + Sync + 'static> Dispatch<WlSurface, Role> for ClientState {
 impl Dispatch<WlBuffer, ()> for ClientState {
     fn event(
         state: &mut Self,
-        _buffer: &WlBuffer,
+        buffer: &WlBuffer,
         event: wl_buffer::Event,
         (): &(),
         _connection: &Connection,
@@ -61,6 +61,7 @@ impl Dispatch<WlBuffer, ()> for ClientState {
     ) {
         if let wl_buffer::Event::Release = event {
             state.released_buffers += 1;
+            state.destroy_retired(buffer);
         }
     }
 }
