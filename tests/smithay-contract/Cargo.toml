@@ -1,0 +1,29 @@
+[package]
+name = "smithay-contract"
+description = "Contract tests for the Smithay features the Tilling backends rely on"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = ["drm", "nested", "xwayland"]
+drm = [
+    "smithay/backend_drm",
+    "smithay/backend_egl",
+    "smithay/backend_gbm",
+    "smithay/backend_libinput",
+    "smithay/backend_session_libseat",
+    "smithay/backend_udev",
+    "smithay/renderer_gl",
+]
+nested = ["smithay/backend_winit"]
+xwayland = ["smithay/xwayland"]
+
+[dev-dependencies]
+smithay = { workspace = true, features = ["wayland_frontend"] }
+
+[lints]
+workspace = true

@@ -1,0 +1,122 @@
+use tilling_core::geometry::Scale;
+use tilling_core::layout::Gaps;
+use tilling_core::{Command, DesktopState, Effect, TransitionError};
+
+use crate::scenario::{add_output, apply, area, desktop_with_output, open, placement_of};
+
+#[test]
+fn losing_every_output_parks_workspaces_without_dropping_windows() {
+    let (mut state, output) = desktop_with_output();
+    let window = open(&mut state, "terminal");
+    let workspace = state.active_workspace();
+
+    let transition = apply(&mut state, Command::RemoveOutput { output });
+
+    assert!(transition.effects.contains(&Effect::FocusChanged {
+        previous: Some(window),
+        current: None,
+    }));
+    assert_eq!(state.workspace(workspace).unwrap().output(), None);
+    assert_eq!(state.workspace(workspace).unwrap().windows(), [window]);
+    assert_eq!(
+        state.placements(workspace, Gaps::default()),
+        Some(Vec::new())
+    );
+
+    let replacement = add_output(&mut state, "replacement", area(0, 0, 1280, 720));
+
+    assert_eq!(state.output(replacement).unwrap().workspace(), workspace);
+    assert_eq!(state.focused_window(), Some(window));
+}
+
+#[test]
+fn removed_output_hands_the_active_workspace_to_the_remaining_output() {
+    let (mut state, primary) = desktop_with_output();
+    let secondary = add_output(&mut state, "secondary", area(1920, 0, 1920, 1080));
+    let workspace = state.output(secondary).unwrap().workspace();
+    apply(&mut state, Command::SwitchWorkspace { workspace });
+    let window = open(&mut state, "browser");
+
+    apply(&mut state, Command::RemoveOutput { output: secondary });
+
+    assert_eq!(state.output(primary).unwrap().workspace(), workspace);
+    assert_eq!(state.workspace(workspace).unwrap().output(), Some(primary));
+    assert_eq!(state.focused_window(), Some(window));
+}
+
+#[test]
+fn each_output_shows_its_own_workspace() {
+    let (mut state, primary) = desktop_with_output();
+
+    let secondary = add_output(&mut state, "secondary", area(-1280, 0, 1280, 1024));
+
+    let first = state.output(primary).unwrap().workspace();
+    let second = state.output(secondary).unwrap().workspace();
+    assert_ne!(first, second);
+    assert_eq!(state.workspace(second).unwrap().name(), "2");
+    assert_eq!(state.workspace(second).unwrap().output(), Some(secondary));
+    assert_eq!(state.active_workspace(), first);
+}
+
+#[test]
+fn tiles_fill_the_output_minus_the_gaps() {
+    let (mut state, _) = desktop_with_output();
+    let first = open(&mut state, "terminal");
+    let second = open(&mut state, "browser");
+    let gaps = Gaps {
+        inner: 10,
+        outer: 20,
+    };
+
+    assert_eq!(placement_of(&state, first, gaps), area(20, 20, 935, 1040));
+    assert_eq!(placement_of(&state, second, gaps), area(965, 20, 935, 1040));
+}
+
+#[test]
+fn reconfiguring_an_output_rearranges_its_workspace() {
+    let (mut state, output) = desktop_with_output();
+    let window = open(&mut state, "terminal");
+    let resized = area(-640, -360, 1280, 720);
+    let scale = Scale::from_factor(1.5).unwrap();
+
+    apply(
+        &mut state,
+        Command::ConfigureOutput {
+            output,
+            area: resized,
+            scale,
+        },
+    );
+
+    assert_eq!(placement_of(&state, window, Gaps::default()), resized);
+    assert_eq!(state.output(output).unwrap().scale(), scale);
+}
+
+#[test]
+fn invalid_output_commands_are_rejected() {
+    let (mut state, output) = desktop_with_output();
+    apply(&mut state, Command::RemoveOutput { output });
+    let before = state.clone();
+
+    let empty = state.apply(Command::AddOutput {
+        name: "empty".into(),
+        area: area(0, 0, 0, 1080),
+        scale: Scale::ONE,
+    });
+    let stale = state.apply(Command::RemoveOutput { output });
+
+    assert_eq!(empty, Err(TransitionError::EmptyOutputArea));
+    assert_eq!(stale, Err(TransitionError::UnknownOutput(output)));
+    assert_eq!(state, before);
+}
+
+#[test]
+fn desktop_without_outputs_has_no_visible_focus() {
+    let mut state = DesktopState::new("1");
+
+    let window = open(&mut state, "terminal");
+
+    let workspace = state.workspace(state.active_workspace()).unwrap();
+    assert_eq!(workspace.focused_window(), Some(window));
+    assert_eq!(state.focused_window(), None);
+}
