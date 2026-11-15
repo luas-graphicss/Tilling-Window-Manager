@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use tilling_compositor::{CompositorError, Options};
+use tilling_compositor::{CompositorError, Options, SessionServices};
 use tilling_config::{ConfigError, ConfigSource};
 
 use crate::arguments::Arguments;
@@ -51,6 +51,7 @@ fn prepare(arguments: Arguments, environment: &Environment) -> Result<Options, L
     if let Some(instance) = arguments.instance {
         options.instance = instance;
     }
+    options.session_services = arguments.session_target.map(SessionServices::systemd);
     Ok(options)
 }
 
@@ -66,6 +67,7 @@ mod tests {
             backend: Backend::Headless,
             config: None,
             instance: None,
+            session_target: None,
             verbose: false,
         }
     }
@@ -106,6 +108,26 @@ mod tests {
         let options = prepare(named, &environment("/run/user/1000")).unwrap();
 
         assert_eq!(options.instance, "scenario");
+    }
+
+    #[test]
+    fn session_target_is_handed_to_the_user_service_manager() {
+        let native = Arguments {
+            session_target: Some("tilling-session.target".to_owned()),
+            ..arguments()
+        };
+
+        let followed = prepare(native, &environment("/run/user/1000")).unwrap();
+        let alone = prepare(arguments(), &environment("/run/user/1000")).unwrap();
+
+        assert_eq!(
+            followed.session_services,
+            Some(SessionServices {
+                manager: vec!["systemctl".to_owned()],
+                target: "tilling-session.target".to_owned(),
+            })
+        );
+        assert_eq!(alone.session_services, None);
     }
 
     #[test]
