@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/tilling-config", "crates/tilling-core"]
+members = ["crates/tilling-config", "crates/tilling-core", "crates/tilling-ipc"]
 
 [workspace.package]
 version = "0.1.0"
