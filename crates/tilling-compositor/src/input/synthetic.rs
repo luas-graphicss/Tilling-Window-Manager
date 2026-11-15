@@ -13,6 +13,7 @@ pub enum SyntheticInput {
     PointerMotion { x: f64, y: f64 },
     PointerButton { code: u32, pressed: bool },
     PointerScroll { horizontal: f64, vertical: f64 },
+    HostFocusLost,
 }
 
 impl Compositor {
@@ -52,6 +53,7 @@ impl Compositor {
                 };
                 self.handle_pointer_scroll(scroll, time);
             }
+            SyntheticInput::HostFocusLost => self.release_held_keys(),
         }
     }
 }

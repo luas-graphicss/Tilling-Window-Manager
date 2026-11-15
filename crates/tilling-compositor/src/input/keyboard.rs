@@ -28,6 +28,16 @@ impl Compositor {
         }
     }
 
+    pub(crate) fn release_held_keys(&mut self) {
+        let Some(keyboard) = self.seat.get_keyboard() else {
+            return;
+        };
+        let time = self.event_time();
+        for keycode in keyboard.pressed_keys() {
+            self.handle_key(keycode, KeyState::Released, time);
+        }
+    }
+
     fn filter_key(
         &mut self,
         keycode: Keycode,

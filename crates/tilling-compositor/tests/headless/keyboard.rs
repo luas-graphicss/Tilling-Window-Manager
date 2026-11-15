@@ -203,3 +203,31 @@ action = {{ spawn = ["sh", "-c", 'printf %s "$WAYLAND_DISPLAY" > "$1"', "sh", "{
     assert_eq!(written, "tilling-test");
     assert!(harness.runtime_dir().join(&written).exists());
 }
+
+#[test]
+fn key_held_when_the_host_window_loses_focus_no_longer_modifies_shortcuts() {
+    let harness = Harness::start();
+    let mut client = harness.connect();
+    let left = client.create_toplevel("org.example.Terminal", "left");
+    let right = client.create_toplevel("org.example.Terminal", "right");
+    client.map(left).unwrap();
+    client.map(right).unwrap();
+    client.settle().unwrap();
+    let before = harness.published(2);
+
+    harness.hold(keys::SUPER);
+    harness.lose_host_focus();
+    let after = harness.chord(&[keys::H]);
+    client.roundtrip().unwrap();
+
+    assert_eq!(after.focused, before.focused);
+    assert_eq!(
+        client.key_events(),
+        [
+            pressed(keys::SUPER),
+            released(keys::SUPER),
+            pressed(keys::H),
+            released(keys::H)
+        ]
+    );
+}

@@ -37,15 +37,14 @@ impl Compositor {
         name: &str,
         size: Size<i32, Physical>,
         refresh_millihertz: i32,
+        host_scale: f64,
     ) -> Result<Output, CompositorError> {
         let configured = self
             .config
             .outputs()
             .iter()
             .find(|output| output.name == name);
-        let scale = configured
-            .and_then(|output| output.scale)
-            .unwrap_or(Scale::ONE);
+        let scale = self.output_scale(name, host_scale);
         let position = configured
             .and_then(|output| output.position)
             .map_or((0, 0), |position| (position.x, position.y));
@@ -84,6 +83,51 @@ impl Compositor {
             self.outputs.insert(id, output.clone());
         }
         Ok(output)
+    }
+
+    #[cfg(feature = "nested")]
+    pub(crate) fn resize_output(
+        &mut self,
+        output: &Output,
+        size: Size<i32, Physical>,
+        refresh_millihertz: i32,
+        host_scale: f64,
+    ) {
+        let Some(id) = self.outputs.id_of(output) else {
+            return;
+        };
+        let scale = self.output_scale(&output.name(), host_scale);
+        let position = output.current_location();
+        let area = match logical_area((position.x, position.y), size, scale) {
+            Ok(area) => area,
+            Err(error) => {
+                tracing::warn!(%error, "keep the previous output size");
+                return;
+            }
+        };
+        let mode = Mode {
+            size,
+            refresh: refresh_millihertz,
+        };
+        let advertised = AdvertisedScale::Fractional(scale.factor());
+        output.change_current_state(Some(mode), None, Some(advertised), None);
+        output.set_preferred(mode);
+        self.run(Command::ConfigureOutput {
+            output: id,
+            area,
+            scale,
+        });
+        self.demand_frame();
+    }
+
+    fn output_scale(&self, name: &str, host_scale: f64) -> Scale {
+        self.config
+            .outputs()
+            .iter()
+            .find(|output| output.name == name)
+            .and_then(|output| output.scale)
+            .or_else(|| Scale::from_factor(host_scale).ok())
+            .unwrap_or(Scale::ONE)
     }
 }
 

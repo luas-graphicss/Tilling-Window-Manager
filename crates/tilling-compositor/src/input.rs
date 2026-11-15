@@ -1,5 +1,7 @@
 mod actions;
 mod bindings;
+#[cfg(feature = "nested")]
+mod device;
 mod drag_grab;
 mod keyboard;
 mod launcher;

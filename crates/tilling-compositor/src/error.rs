@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::path::PathBuf;
 
 use smithay::reexports::calloop;
@@ -37,6 +38,11 @@ pub enum CompositorError {
     OutputSize { width: u32, height: u32 },
     #[error("this build does not include the {0} backend")]
     BackendUnavailable(&'static str),
+    #[error("the {0} backend needs the main thread and cannot run in a session")]
+    MainThreadBackend(&'static str),
+    #[cfg(feature = "nested")]
+    #[error("open the host window: {0}")]
+    HostWindow(String),
     #[error(transparent)]
     Instance(#[from] InstanceError),
     #[error("open the control socket")]
@@ -45,4 +51,15 @@ pub enum CompositorError {
     SessionThread(#[source] std::io::Error),
     #[error("compositor session is no longer running")]
     SessionClosed,
+}
+
+pub(crate) fn cause_chain(error: &dyn Error) -> String {
+    let mut description = error.to_string();
+    let mut cause = error.source();
+    while let Some(source) = cause {
+        description.push_str(": ");
+        description.push_str(&source.to_string());
+        cause = source.source();
+    }
+    description
 }

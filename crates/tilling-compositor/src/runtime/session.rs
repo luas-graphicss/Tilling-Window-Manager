@@ -10,7 +10,7 @@ use super::Runtime;
 use super::instance::Instance;
 use crate::error::CompositorError;
 use crate::input::SyntheticInput;
-use crate::options::Options;
+use crate::options::{BackendKind, Options};
 use crate::render::FrameStats;
 use crate::scene::Scene;
 
@@ -49,6 +49,9 @@ type Startup = Result<(Instance, Sender<Request>), CompositorError>;
 
 impl Session {
     pub fn start(options: Options) -> Result<Self, CompositorError> {
+        if options.backend == BackendKind::Nested {
+            return Err(CompositorError::MainThreadBackend(options.backend.name()));
+        }
         let (announce, startup) = mpsc::channel::<Startup>();
         let thread = thread::Builder::new()
             .name(THREAD_NAME.to_owned())

@@ -3,6 +3,8 @@ use std::error::Error;
 use tilling_core::TransitionError;
 use tilling_ipc::Outcome;
 
+use crate::error::cause_chain;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Refusal {
     NotFound(String),
@@ -12,14 +14,7 @@ pub(super) enum Refusal {
 
 impl Refusal {
     pub(super) fn invalid_because(error: &dyn Error) -> Self {
-        let mut message = error.to_string();
-        let mut cause = error.source();
-        while let Some(source) = cause {
-            message.push_str(": ");
-            message.push_str(&source.to_string());
-            cause = source.source();
-        }
-        Self::Invalid(message)
+        Self::Invalid(cause_chain(error))
     }
 }
 

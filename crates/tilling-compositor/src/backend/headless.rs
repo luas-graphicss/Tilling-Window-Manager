@@ -14,6 +14,7 @@ use crate::runtime::{Compositor, Runtime};
 const REFRESH_MILLIHERTZ: i32 = 60_000;
 const FRAME_INTERVAL: Duration = Duration::from_micros(16_667);
 const RETAINED_BUFFER_AGE: usize = 1;
+const UNSCALED: f64 = 1.0;
 
 pub(crate) struct HeadlessBackend {
     output: Output,
@@ -29,7 +30,7 @@ impl HeadlessBackend {
         compositor: &mut Compositor,
     ) -> Result<Self, CompositorError> {
         let size = physical_size(output)?;
-        let output = compositor.attach_output(&output.name, size, REFRESH_MILLIHERTZ)?;
+        let output = compositor.attach_output(&output.name, size, REFRESH_MILLIHERTZ, UNSCALED)?;
         Ok(Self {
             painter: Painter::new(&output),
             output,

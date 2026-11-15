@@ -145,6 +145,19 @@ impl Harness {
         self.snapshot()
     }
 
+    pub(crate) fn hold(&self, code: u32) -> SessionSnapshot {
+        self.inject(SyntheticInput::Key {
+            code,
+            pressed: true,
+        });
+        self.snapshot()
+    }
+
+    pub(crate) fn lose_host_focus(&self) -> SessionSnapshot {
+        self.inject(SyntheticInput::HostFocusLost);
+        self.snapshot()
+    }
+
     pub(crate) fn move_pointer(&self, x: f64, y: f64) -> SessionSnapshot {
         self.inject(SyntheticInput::PointerMotion { x, y });
         self.snapshot()
