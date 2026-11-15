@@ -38,7 +38,6 @@ pub(super) fn apply(device: &mut Device, input: &InputConfig) {
     }
 }
 
-// The seat already inverts every scroll when pointer.natural_scroll is set.
 fn inverts_on_device(input: &InputConfig) -> bool {
     input.touchpad.natural_scroll != input.pointer.natural_scroll
 }
