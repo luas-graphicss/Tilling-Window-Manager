@@ -26,6 +26,7 @@ fn window_info() -> WindowInfo {
         workspace: WORKSPACE,
         mode: WindowMode::Tiled,
         focused: true,
+        stashed: false,
     }
 }
 
@@ -310,6 +311,15 @@ fn workspace_from_an_older_compositor_reads_as_inactive_bsp() {
 
     assert_eq!(workspace.layout, Layout::Bsp);
     assert!(!workspace.active);
+}
+
+#[test]
+fn window_from_an_older_compositor_reads_as_not_stashed() {
+    let document = br#"{"id":{"index":3,"generation":1},"app_id":null,"title":null,"workspace":{"index":0,"generation":0},"mode":"floating","focused":false}"#;
+
+    let window: WindowInfo = decode(document).unwrap();
+
+    assert!(!window.stashed);
 }
 
 #[test]

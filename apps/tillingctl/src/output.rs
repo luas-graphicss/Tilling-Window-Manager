@@ -159,7 +159,11 @@ fn describe_window(window: &WindowInfo) -> String {
     format!(
         "window {}  {}  {}  workspace {}  app {}  title {}",
         identifier(window.id),
-        mode_name(window.mode),
+        if window.stashed {
+            "stashed"
+        } else {
+            mode_name(window.mode)
+        },
         if window.focused {
             "focused"
         } else {
@@ -238,6 +242,7 @@ mod tests {
             workspace: WORKSPACE,
             mode: WindowMode::Tiled,
             focused: true,
+            stashed: false,
         }
     }
 
@@ -287,6 +292,24 @@ mod tests {
             text(&reply),
             "window 3:1  tiled  focused  workspace 0:0  app org.example.Editor  title Notes\n\
              window 3:1  tiled  focused  workspace 0:0  app org.example.Editor  title Draft"
+        );
+    }
+
+    #[test]
+    fn window_in_the_scratchpad_is_listed_as_stashed() {
+        let hidden = WindowInfo {
+            mode: WindowMode::Floating,
+            focused: false,
+            stashed: true,
+            ..window("Notes")
+        };
+        let reply = Outcome::Success {
+            result: Reply::Windows(vec![hidden]),
+        };
+
+        assert_eq!(
+            text(&reply),
+            "window 3:1  stashed  unfocused  workspace 0:0  app org.example.Editor  title Notes"
         );
     }
 

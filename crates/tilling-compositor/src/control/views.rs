@@ -64,6 +64,7 @@ pub(super) fn window(desktop: &DesktopState, id: WindowId, window: &Window) -> W
         workspace: workspace_id(window.workspace()),
         mode: mode(window.mode()),
         focused: desktop.focused_window() == Some(id),
+        stashed: desktop.is_stashed(id),
     }
 }
 

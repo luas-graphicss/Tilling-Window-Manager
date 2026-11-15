@@ -86,6 +86,8 @@ pub struct WindowInfo {
     pub workspace: ResourceId,
     pub mode: WindowMode,
     pub focused: bool,
+    #[serde(default)]
+    pub stashed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
