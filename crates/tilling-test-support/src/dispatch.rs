@@ -17,6 +17,7 @@ use wayland_protocols::xdg::shell::client::xdg_wm_base::{self, XdgWmBase};
 
 use crate::state::{
     ButtonEvent, ClientState, KeyEvent, PopupConfigure, PopupIndex, ProposedState, ScrollEvent,
+    SubsurfaceIndex,
 };
 
 delegate_noop!(ClientState: WlCompositor);
@@ -245,10 +246,12 @@ impl Dispatch<WlPointer, ()> for ClientState {
             } => {
                 state.seat.enter_serial = Some(serial);
                 state.seat.pointer_focus = toplevel_of(&surface);
+                state.seat.pointer_subsurface = subsurface_of(&surface);
                 state.seat.pointer_position = Some((surface_x, surface_y));
             }
             wl_pointer::Event::Leave { .. } => {
                 state.seat.pointer_focus = None;
+                state.seat.pointer_subsurface = None;
                 state.seat.pointer_position = None;
             }
             wl_pointer::Event::Motion {
@@ -293,4 +296,10 @@ fn toplevel_of(surface: &WlSurface) -> Option<usize> {
 
 fn popup_of(surface: &WlSurface) -> Option<usize> {
     surface.data::<PopupIndex>().map(|popup| popup.0)
+}
+
+fn subsurface_of(surface: &WlSurface) -> Option<usize> {
+    surface
+        .data::<SubsurfaceIndex>()
+        .map(|subsurface| subsurface.0)
 }

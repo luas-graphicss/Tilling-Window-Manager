@@ -8,6 +8,7 @@ use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_compositor::WlCompositor;
 use wayland_client::protocol::wl_seat::WlSeat;
 use wayland_client::protocol::wl_shm::WlShm;
+use wayland_client::protocol::wl_subcompositor::WlSubcompositor;
 use wayland_client::protocol::wl_surface::WlSurface;
 use wayland_client::{Connection, EventQueue};
 use wayland_protocols::xdg::decoration::zv1::client::zxdg_decoration_manager_v1::ZxdgDecorationManagerV1;
@@ -25,6 +26,7 @@ use crate::state::{
     AdvertisedGlobal, ButtonEvent, ClientState, KeyEvent, ScrollEvent, ToplevelConfigure,
     ToplevelRecord,
 };
+use crate::subsurface::Subsurface;
 
 const DEFAULT_WIDTH: u32 = 640;
 const DEFAULT_HEIGHT: u32 = 480;
@@ -54,11 +56,13 @@ pub struct Client {
     pub(crate) state: ClientState,
     globals: Vec<AdvertisedGlobal>,
     pub(crate) compositor: WlCompositor,
+    pub(crate) subcompositor: WlSubcompositor,
     pub(crate) shm: WlShm,
     pub(crate) wm_base: XdgWmBase,
     pub(crate) seat: WlSeat,
     toplevels: Vec<Option<Toplevel>>,
     pub(crate) popups: Vec<Option<Popup>>,
+    pub(crate) subsurfaces: Vec<Option<Subsurface>>,
     cursor: Option<(WlSurface, WlBuffer)>,
     pub(crate) decoration_manager: Option<ZxdgDecorationManagerV1>,
     pub(crate) decorations: Vec<(ToplevelId, ZxdgToplevelDecorationV1)>,
@@ -78,6 +82,9 @@ impl Client {
         let compositor = list
             .bind(&handle, 1..=6, ())
             .map_err(bind_error("wl_compositor"))?;
+        let subcompositor = list
+            .bind(&handle, 1..=1, ())
+            .map_err(bind_error("wl_subcompositor"))?;
         let shm = list
             .bind(&handle, 1..=1, ())
             .map_err(bind_error("wl_shm"))?;
@@ -102,11 +109,13 @@ impl Client {
             state: ClientState::default(),
             globals,
             compositor,
+            subcompositor,
             shm,
             wm_base,
             seat,
             toplevels: Vec::new(),
             popups: Vec::new(),
+            subsurfaces: Vec::new(),
             cursor: None,
             decoration_manager,
             decorations: Vec::new(),
@@ -417,6 +426,10 @@ impl Client {
             .toplevels
             .get(toplevel.0)
             .is_some_and(|record| record.close_requested)
+    }
+
+    pub(crate) fn surface_of(&self, toplevel: ToplevelId) -> Result<&WlSurface, ClientError> {
+        Ok(&self.toplevel(toplevel)?.surface)
     }
 
     pub(crate) fn xdg_surface_of(&self, toplevel: ToplevelId) -> Result<&XdgSurface, ClientError> {

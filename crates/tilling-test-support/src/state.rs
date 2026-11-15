@@ -50,6 +50,9 @@ pub struct PopupConfigure {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct PopupIndex(pub(crate) usize);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct SubsurfaceIndex(pub(crate) usize);
+
 #[derive(Debug, Default)]
 pub(crate) struct PopupRecord {
     pub(crate) proposed: Option<PopupConfigure>,
@@ -85,6 +88,7 @@ pub(crate) struct SeatLog {
     pub(crate) keyboard_popup: Option<usize>,
     pub(crate) keys: Vec<KeyEvent>,
     pub(crate) pointer_focus: Option<usize>,
+    pub(crate) pointer_subsurface: Option<usize>,
     pub(crate) pointer_position: Option<(f64, f64)>,
     pub(crate) buttons: Vec<ButtonEvent>,
     pub(crate) button_serial: Option<u32>,

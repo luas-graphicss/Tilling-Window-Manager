@@ -32,6 +32,8 @@ pub enum ClientError {
     DestroyedToplevel,
     #[error("popup was already destroyed")]
     DestroyedPopup,
+    #[error("sub-surface was already destroyed")]
+    DestroyedSubsurface,
     #[error("no pointer button event was received yet")]
     NoButtonSerial,
     #[error("pointer has not entered a surface of this client")]
