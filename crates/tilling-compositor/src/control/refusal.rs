@@ -38,6 +38,7 @@ impl From<TransitionError> for Refusal {
             TransitionError::EmptyWorkspaceName
             | TransitionError::DuplicateWorkspaceName(_)
             | TransitionError::EmptyOutputArea
+            | TransitionError::OutputFullyReserved(_)
             | TransitionError::FullscreenLocked(_)
             | TransitionError::WindowStashed(_)
             | TransitionError::RevisionExhausted

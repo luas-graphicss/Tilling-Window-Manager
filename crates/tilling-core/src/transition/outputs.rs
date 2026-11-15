@@ -1,6 +1,6 @@
 use super::{Effect, TransitionError};
 use crate::desktop::DesktopState;
-use crate::geometry::{LogicalRect, Scale};
+use crate::geometry::{Insets, LogicalRect, Scale};
 use crate::identity::{OutputId, WindowId, WorkspaceId};
 use crate::layout::Direction;
 use crate::output::{Output, adjacency};
@@ -30,6 +30,7 @@ impl DesktopState {
         let output = self.outputs.insert(Output {
             name,
             area,
+            reserved: Insets::default(),
             scale,
             workspace,
         })?;
@@ -55,6 +56,22 @@ impl DesktopState {
         let configured = self.require_output_mut(output)?;
         configured.area = area;
         configured.scale = scale;
+        if area.inset(configured.reserved).is_none() {
+            configured.reserved = Insets::default();
+        }
+        Ok(vec![Effect::OutputConfigured(output)])
+    }
+
+    pub(super) fn reserve_output_edges(
+        &mut self,
+        output: OutputId,
+        edges: Insets,
+    ) -> Result<Vec<Effect>, TransitionError> {
+        let configured = self.require_output_mut(output)?;
+        if configured.area.inset(edges).is_none() {
+            return Err(TransitionError::OutputFullyReserved(output));
+        }
+        configured.reserved = edges;
         Ok(vec![Effect::OutputConfigured(output)])
     }
 

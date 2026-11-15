@@ -97,7 +97,7 @@ impl DesktopState {
         let tiles = workspace
             .layout
             .arrange(
-                output.area.shrink(gaps.outer),
+                output.work_area().shrink(gaps.outer),
                 gaps.inner,
                 workspace.front_tile(),
             )

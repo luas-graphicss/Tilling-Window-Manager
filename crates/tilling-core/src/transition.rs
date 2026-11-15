@@ -58,6 +58,8 @@ pub enum TransitionError {
     DuplicateWorkspaceName(String),
     #[error("output area must not be empty")]
     EmptyOutputArea,
+    #[error("reserved edges leave no room for windows on output {0}")]
+    OutputFullyReserved(OutputId),
     #[error("window {0} must leave fullscreen before changing mode")]
     FullscreenLocked(WindowId),
     #[error("window {0} is stashed in the scratchpad")]
@@ -107,6 +109,9 @@ impl DesktopState {
                 area,
                 scale,
             } => self.configure_output(output, area, scale),
+            Command::ReserveOutputEdges { output, edges } => {
+                self.reserve_output_edges(output, edges)
+            }
             Command::RemoveOutput { output } => self.remove_output(output),
             Command::CreateWorkspace { name } => self.create_workspace(name),
             Command::SwitchWorkspace { workspace } => self.activate_workspace(workspace),
