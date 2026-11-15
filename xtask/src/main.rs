@@ -1,9 +1,11 @@
+mod inventory;
+mod operator;
 mod runner;
 mod sandbox;
 mod scenario;
 
 use std::error::Error;
-use std::io;
+use std::io::{self, BufRead};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
@@ -12,6 +14,7 @@ use crate::runner::Verdict;
 use crate::scenario::Scenario;
 
 const BROKEN_EXIT_CODE: u8 = 2;
+const INCOMPLETE_EXIT_CODE: u8 = 3;
 
 #[derive(Debug, Parser)]
 #[command(name = "xtask", about = "Development tasks of the Tilling workspace")]
@@ -26,13 +29,21 @@ enum Task {
     Scenario {
         #[arg(value_enum)]
         name: Scenario,
+        #[arg(
+            long,
+            help = "Ask the operator of a native session to confirm the hardware checks"
+        )]
+        operator: bool,
     },
 }
 
 fn main() -> ExitCode {
-    let Task::Scenario { name } = Arguments::parse().task;
-    match runner::run(name, &mut io::stdout().lock()) {
+    let Task::Scenario { name, operator } = Arguments::parse().task;
+    let mut answers = io::stdin().lock();
+    let operator = operator.then_some(&mut answers as &mut dyn BufRead);
+    match runner::run(name, operator, &mut io::stdout().lock()) {
         Ok(Verdict::Passed) => ExitCode::SUCCESS,
+        Ok(Verdict::Incomplete) => ExitCode::from(INCOMPLETE_EXIT_CODE),
         Ok(Verdict::Failed) => ExitCode::FAILURE,
         Err(failure) => {
             eprintln!("xtask: {}", describe(&failure));

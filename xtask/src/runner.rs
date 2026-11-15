@@ -1,7 +1,9 @@
 use std::ffi::OsString;
-use std::io::{self, Write};
+use std::io::{self, BufRead, Write};
 use std::process::{Command, Stdio};
 
+use crate::inventory::Inventory;
+use crate::operator;
 use crate::sandbox::{Sandbox, SandboxError};
 use crate::scenario::{Scenario, Step};
 
@@ -19,10 +21,21 @@ pub enum RunError {
     Report(#[from] io::Error),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Verdict {
     Passed,
+    Incomplete,
     Failed,
+}
+
+impl Verdict {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Passed => "passed",
+            Self::Incomplete => "incomplete, hardware checks are missing",
+            Self::Failed => "failed",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,7 +45,11 @@ enum StepResult {
     Failed,
 }
 
-pub fn run(scenario: Scenario, report: &mut impl Write) -> Result<Verdict, RunError> {
+pub fn run(
+    scenario: Scenario,
+    operator: Option<&mut dyn BufRead>,
+    report: &mut impl Write,
+) -> Result<Verdict, RunError> {
     let sandbox = Sandbox::create(
         std::env::var_os(RUNTIME_DIRECTORY_VARIABLE),
         scenario.name(),
@@ -40,10 +57,29 @@ pub fn run(scenario: Scenario, report: &mut impl Write) -> Result<Verdict, RunEr
     writeln!(report, "scenario {}", scenario.name())?;
     writeln!(report, "  backend: headless")?;
     writeln!(report, "  runtime directory: {}", sandbox.path().display())?;
+    let mut verdict = automated(scenario, &sandbox, report)?;
+    for behaviour in scenario.needs_host_window() {
+        writeln!(
+            report,
+            "  not observed, needs the nested backend: {behaviour}"
+        )?;
+    }
+    if verdict == Verdict::Passed {
+        verdict = on_hardware(scenario, operator, report)?;
+    }
+    writeln!(report, "result: {}", verdict.label())?;
+    Ok(verdict)
+}
+
+fn automated(
+    scenario: Scenario,
+    sandbox: &Sandbox,
+    report: &mut impl Write,
+) -> Result<Verdict, RunError> {
     let steps = scenario.steps();
     let mut verdict = Verdict::Passed;
     for (index, step) in steps.iter().enumerate() {
-        let (result, output) = execute(step, &sandbox)?;
+        let (result, output) = execute(step, sandbox)?;
         let command = step.arguments().join(" ");
         let position = index + 1;
         let total = steps.len();
@@ -63,18 +99,40 @@ pub fn run(scenario: Scenario, report: &mut impl Write) -> Result<Verdict, RunEr
         writeln!(report, "  socket left behind: {}", socket.display())?;
         verdict = Verdict::Failed;
     }
-    for behaviour in scenario.needs_host_window() {
+    Ok(verdict)
+}
+
+fn on_hardware(
+    scenario: Scenario,
+    operator: Option<&mut dyn BufRead>,
+    report: &mut impl Write,
+) -> Result<Verdict, RunError> {
+    let checks = scenario.operator_checks();
+    if checks.is_empty() {
+        return Ok(Verdict::Passed);
+    }
+    let Some(answers) = operator else {
+        for check in checks {
+            writeln!(
+                report,
+                "  not run, needs an operator on a native session: {}",
+                check.expectation
+            )?;
+        }
+        return Ok(Verdict::Incomplete);
+    };
+    let inventory = Inventory::read();
+    for line in inventory.lines() {
+        writeln!(report, "  {line}")?;
+    }
+    if !inventory.has_graphics() {
         writeln!(
             report,
-            "  not observed, needs the nested backend: {behaviour}"
+            "  not run, this machine has no graphics device to check"
         )?;
+        return Ok(Verdict::Incomplete);
     }
-    let outcome = match verdict {
-        Verdict::Passed => "passed",
-        Verdict::Failed => "failed",
-    };
-    writeln!(report, "result: {outcome}")?;
-    Ok(verdict)
+    Ok(operator::review(checks, answers, report)?)
 }
 
 fn execute(step: &Step, sandbox: &Sandbox) -> Result<(StepResult, Vec<u8>), RunError> {
@@ -137,6 +195,16 @@ test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 
         assert_eq!(passed_tests(printed), 0);
         assert_eq!(passed_tests("error: could not compile"), 0);
+    }
+
+    #[test]
+    fn missing_hardware_checks_rank_between_success_and_failure() {
+        assert!(Verdict::Passed < Verdict::Incomplete);
+        assert!(Verdict::Incomplete < Verdict::Failed);
+        assert_eq!(
+            Verdict::Incomplete.label(),
+            "incomplete, hardware checks are missing"
+        );
     }
 
     #[test]
