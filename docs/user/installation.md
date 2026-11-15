@@ -31,7 +31,7 @@ Build the `.deb` on the oldest release you want it to run on. The binaries link 
 
     sudo apt install ./tilling_0.1.0_amd64.deb
 
-`apt` pulls the libraries named in `packaging/debian/control`. The terminal of the default configuration, `foot`, is only recommended; install it or name another one in your configuration.
+`apt` pulls the libraries named in `packaging/debian/control`. The terminal, the launcher and the locker of the default configuration, `foot`, `fuzzel` and `swaylock`, are only recommended; install them or name others in your configuration.
 
 ## Arch Linux
 
@@ -56,6 +56,8 @@ You need libseat, libinput, libudev, libgbm, libxkbcommon, libwayland and an EGL
 | --- | --- |
 | `/usr/bin/tilling`, `/usr/bin/tillingctl` | The programs |
 | `/usr/share/wayland-sessions/tilling.desktop` | Session entry for display managers |
+| `/usr/share/systemd/user/tilling-session.target` | Target the user services of the session attach to |
+| `/usr/share/xdg-desktop-portal/tilling-portals.conf` | Which portal backend answers which request |
 | `/usr/share/tilling/config.toml` | The default configuration, as a starting point |
 | `/usr/share/doc/tilling/` | README and license |
 | `/usr/share/bash-completion/completions/tillingctl` | Completions for bash |
@@ -72,12 +74,12 @@ From a display manager, choose the Tilling session. From a virtual terminal:
 
     tilling --backend drm
 
-Without a configuration of your own the built-in one applies: `Super+Return` opens `foot`, `Super+Shift+e` ends the session. To change anything, start from the installed copy:
+Without a configuration of your own the built-in one applies: `Super+Return` opens `foot`, `Super+d` opens `fuzzel`, `Super+Escape` locks with `swaylock` and `Super+Shift+e` ends the session. To change anything, start from the installed copy:
 
     mkdir -p ~/.config/tilling
     cp /usr/share/tilling/config.toml ~/.config/tilling/config.toml
 
-If the session does not come up, see [recovery.md](recovery.md).
+If the session does not come up, see [recovery.md](recovery.md). For the locker, panels, input methods and user services, see [session.md](session.md).
 
 ## Removing
 
