@@ -165,6 +165,7 @@ impl Dispatch<XdgToplevel, usize> for ClientState {
                 states,
             } => record.propose(ProposedState::new(width, height, &states)),
             xdg_toplevel::Event::Close => record.close_requested = true,
+            xdg_toplevel::Event::WmCapabilities { capabilities } => record.offer(&capabilities),
             _ => {}
         }
     }

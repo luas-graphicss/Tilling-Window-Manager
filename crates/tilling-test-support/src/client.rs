@@ -10,8 +10,12 @@ use wayland_client::protocol::wl_seat::WlSeat;
 use wayland_client::protocol::wl_shm::WlShm;
 use wayland_client::protocol::wl_surface::WlSurface;
 use wayland_client::{Connection, EventQueue};
+use wayland_protocols::xdg::decoration::zv1::client::zxdg_decoration_manager_v1::ZxdgDecorationManagerV1;
+use wayland_protocols::xdg::decoration::zv1::client::zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1;
 use wayland_protocols::xdg::shell::client::xdg_surface::XdgSurface;
-use wayland_protocols::xdg::shell::client::xdg_toplevel::{ResizeEdge, XdgToplevel};
+use wayland_protocols::xdg::shell::client::xdg_toplevel::{
+    ResizeEdge, WmCapabilities, XdgToplevel,
+};
 use wayland_protocols::xdg::shell::client::xdg_wm_base::XdgWmBase;
 
 use crate::buffer;
@@ -29,6 +33,12 @@ pub(crate) const WAIT_STEP: Duration = Duration::from_millis(2);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ToplevelId(usize);
+
+impl ToplevelId {
+    pub(crate) const fn index(self) -> usize {
+        self.0
+    }
+}
 
 #[derive(Debug)]
 struct Toplevel {
@@ -50,6 +60,8 @@ pub struct Client {
     toplevels: Vec<Option<Toplevel>>,
     pub(crate) popups: Vec<Option<Popup>>,
     cursor: Option<(WlSurface, WlBuffer)>,
+    pub(crate) decoration_manager: Option<ZxdgDecorationManagerV1>,
+    pub(crate) decorations: Vec<(ToplevelId, ZxdgToplevelDecorationV1)>,
 }
 
 impl Client {
@@ -75,6 +87,7 @@ impl Client {
         let seat = list
             .bind(&handle, 1..=9, ())
             .map_err(bind_error("wl_seat"))?;
+        let decoration_manager = list.bind(&handle, 1..=1, ()).ok();
         let globals = list
             .contents()
             .clone_list()
@@ -95,6 +108,8 @@ impl Client {
             toplevels: Vec::new(),
             popups: Vec::new(),
             cursor: None,
+            decoration_manager,
+            decorations: Vec::new(),
         })
     }
 
@@ -250,6 +265,17 @@ impl Client {
         Ok(())
     }
 
+    pub fn attach_buffer_beyond_its_pool(
+        &mut self,
+        toplevel: ToplevelId,
+    ) -> Result<(), ClientError> {
+        let buffer = buffer::create_beyond_pool(&self.shm, &self.queue.handle())?;
+        let target = self.toplevel(toplevel)?;
+        target.surface.attach(Some(&buffer), 0, 0);
+        target.surface.commit();
+        Ok(())
+    }
+
     pub fn acknowledge(
         &mut self,
         toplevel: ToplevelId,
@@ -285,6 +311,7 @@ impl Client {
     }
 
     pub fn destroy_toplevel(&mut self, toplevel: ToplevelId) -> Result<(), ClientError> {
+        self.release_decoration(toplevel);
         let target = self
             .toplevels
             .get_mut(toplevel.0)
@@ -373,6 +400,18 @@ impl Client {
     }
 
     #[must_use]
+    pub fn window_management_capabilities(
+        &self,
+        toplevel: ToplevelId,
+    ) -> Option<&[WmCapabilities]> {
+        self.state
+            .toplevels
+            .get(toplevel.0)?
+            .capabilities
+            .as_deref()
+    }
+
+    #[must_use]
     pub fn close_requested(&self, toplevel: ToplevelId) -> bool {
         self.state
             .toplevels
@@ -382,6 +421,10 @@ impl Client {
 
     pub(crate) fn xdg_surface_of(&self, toplevel: ToplevelId) -> Result<&XdgSurface, ClientError> {
         Ok(&self.toplevel(toplevel)?.xdg_surface)
+    }
+
+    pub(crate) fn toplevel_role(&self, toplevel: ToplevelId) -> Result<&XdgToplevel, ClientError> {
+        Ok(&self.toplevel(toplevel)?.role)
     }
 
     fn present(

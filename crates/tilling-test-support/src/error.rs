@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use wayland_client::backend::WaylandError;
 use wayland_client::globals::{BindError, GlobalError};
 use wayland_client::{ConnectError, DispatchError};
 
@@ -35,6 +36,20 @@ pub enum ClientError {
     NoButtonSerial,
     #[error("pointer has not entered a surface of this client")]
     PointerOutside,
+    #[error("compositor does not negotiate decorations")]
+    NoDecorationManager,
     #[error("timed out waiting for {0}")]
     Timeout(&'static str),
+}
+
+impl ClientError {
+    #[must_use]
+    pub fn protocol_error(&self) -> Option<(&str, u32)> {
+        match self {
+            Self::Dispatch(DispatchError::Backend(WaylandError::Protocol(error))) => {
+                Some((error.object_interface.as_str(), error.code))
+            }
+            _ => None,
+        }
+    }
 }

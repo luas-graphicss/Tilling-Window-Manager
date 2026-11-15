@@ -1,7 +1,9 @@
 use std::collections::VecDeque;
 
 use wayland_client::protocol::wl_pointer::WlPointer;
-use wayland_protocols::xdg::shell::client::xdg_toplevel::State;
+use wayland_protocols::xdg::shell::client::xdg_toplevel::{State, WmCapabilities};
+
+use crate::decoration::DecorationMode;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AdvertisedGlobal {
@@ -70,6 +72,8 @@ pub(crate) struct ToplevelRecord {
     pub(crate) unacknowledged: VecDeque<ToplevelConfigure>,
     pub(crate) latest: Option<ToplevelConfigure>,
     pub(crate) close_requested: bool,
+    pub(crate) capabilities: Option<Vec<WmCapabilities>>,
+    pub(crate) decoration: Option<DecorationMode>,
 }
 
 #[derive(Debug, Default)]
@@ -122,6 +126,16 @@ impl ProposedState {
 impl ToplevelRecord {
     pub(crate) fn propose(&mut self, proposed: ProposedState) {
         self.proposed = proposed;
+    }
+
+    pub(crate) fn offer(&mut self, capabilities: &[u8]) {
+        let offered = capabilities
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .filter_map(|bytes| WmCapabilities::try_from(u32::from_ne_bytes(*bytes)).ok())
+            .collect();
+        self.capabilities = Some(offered);
     }
 
     pub(crate) fn configure(&mut self, serial: u32) {

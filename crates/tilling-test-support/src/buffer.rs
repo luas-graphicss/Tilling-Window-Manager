@@ -10,6 +10,28 @@ use crate::state::ClientState;
 
 const BYTES_PER_PIXEL: u32 = 4;
 const MEMORY_NAME: &str = "tilling-test-buffer";
+const UNDERSIZED_POOL_BYTES: i32 = 4096;
+const OVERSIZED_SIDE: i32 = 64;
+
+pub(crate) fn create_beyond_pool(
+    shm: &WlShm,
+    queue: &QueueHandle<ClientState>,
+) -> Result<WlBuffer, ClientError> {
+    let memory = memfd_create(MEMORY_NAME, MemfdFlags::CLOEXEC).map_err(ClientError::Buffer)?;
+    ftruncate(&memory, u64::from(UNDERSIZED_POOL_BYTES.unsigned_abs()))
+        .map_err(ClientError::Buffer)?;
+    let pool = shm.create_pool(memory.as_fd(), UNDERSIZED_POOL_BYTES, queue, ());
+    let stride = OVERSIZED_SIDE * BYTES_PER_PIXEL.cast_signed();
+    Ok(pool.create_buffer(
+        0,
+        OVERSIZED_SIDE,
+        OVERSIZED_SIDE,
+        stride,
+        Format::Argb8888,
+        queue,
+        (),
+    ))
+}
 
 pub(crate) fn create(
     shm: &WlShm,
