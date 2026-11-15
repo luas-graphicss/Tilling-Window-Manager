@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 
 use smithay::desktop::PopupManager;
 use smithay::input::keyboard::{Keycode, XkbConfig};
+use smithay::input::pointer::CursorImageStatus;
 use smithay::input::{Seat, SeatState};
 use smithay::reexports::calloop::{LoopHandle, LoopSignal};
 use smithay::reexports::wayland_server::DisplayHandle;
@@ -18,6 +19,7 @@ use crate::control::ControlPeers;
 use crate::desktop::initial_desktop;
 use crate::error::CompositorError;
 use crate::input::{BindingTable, InputSerials, Launcher};
+use crate::render::FrameStats;
 use crate::scene::Scene;
 use crate::shell::WindowRegistry;
 use crate::transaction::Coordinator;
@@ -50,6 +52,7 @@ pub(crate) struct Compositor {
     pub(crate) keyboard_mode: String,
     pub(crate) suppressed_keys: HashSet<Keycode>,
     pub(crate) input_serials: InputSerials,
+    pub(crate) cursor: CursorImageStatus,
     pub(crate) launcher: Launcher,
     pub(crate) desktop: DesktopState,
     pub(crate) windows: WindowRegistry,
@@ -57,6 +60,7 @@ pub(crate) struct Compositor {
     pub(crate) scene: Scene,
     pub(crate) transactions: Coordinator,
     pub(crate) control: ControlPeers,
+    pub(crate) frames: FrameStats,
     frame_demanded: bool,
 }
 
@@ -111,6 +115,7 @@ impl Compositor {
             keyboard_mode: DEFAULT_MODE.to_owned(),
             suppressed_keys: HashSet::new(),
             input_serials: InputSerials::default(),
+            cursor: CursorImageStatus::default_named(),
             launcher,
             desktop,
             windows: WindowRegistry::default(),
@@ -118,6 +123,7 @@ impl Compositor {
             scene: Scene::default(),
             transactions: Coordinator::new(transaction_timeout),
             control: ControlPeers::default(),
+            frames: FrameStats::default(),
             frame_demanded: false,
         })
     }

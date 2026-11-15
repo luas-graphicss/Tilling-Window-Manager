@@ -1,4 +1,5 @@
 mod control;
+mod frames;
 mod globals;
 mod harness;
 mod keyboard;

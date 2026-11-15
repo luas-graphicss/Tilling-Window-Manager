@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+use smithay::backend::renderer::test::{DummyFramebuffer, DummyRenderer};
 use smithay::output::Output;
 use smithay::reexports::calloop::LoopHandle;
 use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
@@ -7,13 +8,17 @@ use smithay::utils::{Physical, Size};
 
 use crate::error::CompositorError;
 use crate::options::VirtualOutput;
+use crate::render::Painter;
 use crate::runtime::{Compositor, Runtime};
 
 const REFRESH_MILLIHERTZ: i32 = 60_000;
 const FRAME_INTERVAL: Duration = Duration::from_micros(16_667);
+const RETAINED_BUFFER_AGE: usize = 1;
 
 pub(crate) struct HeadlessBackend {
     output: Output,
+    renderer: DummyRenderer,
+    painter: Painter,
     last_frame: Option<Instant>,
     frame_scheduled: bool,
 }
@@ -26,7 +31,9 @@ impl HeadlessBackend {
         let size = physical_size(output)?;
         let output = compositor.attach_output(&output.name, size, REFRESH_MILLIHERTZ)?;
         Ok(Self {
+            painter: Painter::new(&output),
             output,
+            renderer: DummyRenderer,
             last_frame: None,
             frame_scheduled: false,
         })
@@ -53,6 +60,16 @@ impl HeadlessBackend {
     pub(crate) fn present(&mut self, compositor: &mut Compositor) {
         self.frame_scheduled = false;
         self.last_frame = Some(Instant::now());
+        let painted = self.painter.paint(
+            compositor,
+            &mut self.renderer,
+            &mut DummyFramebuffer,
+            RETAINED_BUFFER_AGE,
+        );
+        match painted {
+            Ok(damage) => compositor.frames.record(damage.as_deref()),
+            Err(error) => tracing::warn!(%error, "paint headless frame"),
+        }
         compositor.send_frame_callbacks(&self.output);
     }
 }

@@ -5,7 +5,9 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use tempfile::TempDir;
-use tilling_compositor::{BackendKind, Options, Session, SessionSnapshot, SyntheticInput};
+use tilling_compositor::{
+    BackendKind, FrameStats, Options, Session, SessionSnapshot, SyntheticInput,
+};
 use tilling_config::{ConfigSource, ValidatedConfig};
 use tilling_test_support::Client;
 
@@ -13,6 +15,7 @@ const PRIVATE_DIRECTORY_MODE: u32 = 0o700;
 const CONTROL_TIMEOUT: Duration = Duration::from_secs(5);
 const WAIT_LIMIT: Duration = Duration::from_secs(5);
 const WAIT_STEP: Duration = Duration::from_millis(2);
+const IDLE_WINDOW: Duration = Duration::from_millis(80);
 
 pub(crate) struct Harness {
     session: Session,
@@ -100,6 +103,23 @@ impl Harness {
                 "timed out waiting until {expectation}: {snapshot:?}"
             );
             thread::sleep(WAIT_STEP);
+        }
+    }
+
+    pub(crate) fn idle_frames(&self) -> FrameStats {
+        let started = Instant::now();
+        let mut seen = self.snapshot().frames;
+        loop {
+            thread::sleep(IDLE_WINDOW);
+            let current = self.snapshot().frames;
+            if current == seen {
+                return current;
+            }
+            assert!(
+                started.elapsed() < WAIT_LIMIT,
+                "timed out waiting for the compositor to stop presenting: {current:?}"
+            );
+            seen = current;
         }
     }
 

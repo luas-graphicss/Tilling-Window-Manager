@@ -19,6 +19,13 @@ impl OutputRegistry {
         self.entries.first().map(|(_, output)| output)
     }
 
+    pub(crate) fn id_of(&self, output: &Output) -> Option<OutputId> {
+        self.entries
+            .iter()
+            .find(|(_, known)| known == output)
+            .map(|(id, _)| *id)
+    }
+
     fn insert(&mut self, id: OutputId, output: Output) {
         self.entries.push((id, output));
     }

@@ -11,6 +11,7 @@ use super::instance::Instance;
 use crate::error::CompositorError;
 use crate::input::SyntheticInput;
 use crate::options::Options;
+use crate::render::FrameStats;
 use crate::scene::Scene;
 
 const THREAD_NAME: &str = "tilling-compositor";
@@ -27,6 +28,7 @@ pub struct SessionSnapshot {
     pub keyboard_mode: String,
     pub control_peers: usize,
     pub control_subscribers: usize,
+    pub frames: FrameStats,
 }
 
 #[derive(Debug)]

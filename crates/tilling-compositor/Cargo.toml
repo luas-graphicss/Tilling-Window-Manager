@@ -15,7 +15,7 @@ nested = ["smithay/backend_winit", "smithay/renderer_gl"]
 [dependencies]
 calloop = { workspace = true }
 rustix = { workspace = true }
-smithay = { workspace = true, features = ["desktop", "wayland_frontend"] }
+smithay = { workspace = true, features = ["desktop", "renderer_test", "wayland_frontend"] }
 thiserror = { workspace = true }
 tilling-config = { workspace = true }
 tilling-core = { workspace = true }

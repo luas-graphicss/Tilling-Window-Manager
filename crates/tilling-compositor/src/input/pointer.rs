@@ -18,6 +18,9 @@ impl Compositor {
         };
         pointer.motion(self, focus, &event);
         pointer.frame(self);
+        if self.cursor_surface().is_some() {
+            self.demand_frame();
+        }
     }
 
     pub(crate) fn handle_pointer_button(&mut self, button: u32, state: ButtonState, time: u32) {

@@ -10,4 +10,6 @@ mod registry;
 
 pub(crate) use configure::configure_toplevel;
 pub(crate) use drag::{Drag, Edges};
+pub(crate) use hit_test::surface_origin;
+pub(crate) use registry::ManagedWindow;
 pub(crate) use registry::WindowRegistry;

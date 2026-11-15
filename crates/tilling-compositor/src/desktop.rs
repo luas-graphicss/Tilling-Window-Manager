@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use smithay::desktop::utils::send_frames_surface_tree;
 use smithay::output::Output;
 use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
 use smithay::utils::SERIAL_COUNTER;
@@ -76,6 +77,11 @@ impl Compositor {
                     });
             }
         }
+        if let Some(cursor) = self.cursor_surface() {
+            send_frames_surface_tree(cursor, output, elapsed, Some(Duration::ZERO), |_, _| {
+                Some(output.clone())
+            });
+        }
     }
 
     pub(crate) fn workspace_named(&self, name: &str) -> Option<WorkspaceId> {
@@ -97,6 +103,7 @@ impl Compositor {
             keyboard_mode: self.keyboard_mode.clone(),
             control_peers: self.control.len(),
             control_subscribers: self.control.subscriber_count(),
+            frames: self.frames,
         }
     }
 
