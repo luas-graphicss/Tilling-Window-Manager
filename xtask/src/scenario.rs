@@ -40,7 +40,14 @@ impl Scenario {
                 Step {
                     package: COMPOSITOR,
                     target: HEADLESS,
-                    filters: &["lifecycle::", "popups::", "tiling::", "backends::"],
+                    filters: &[
+                        "globals::",
+                        "lifecycle::",
+                        "subsurfaces::",
+                        "popups::",
+                        "tiling::",
+                        "backends::",
+                    ],
                 },
                 Step {
                     package: "tilling",
