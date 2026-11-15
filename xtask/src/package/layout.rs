@@ -10,10 +10,18 @@ const EXECUTABLE_MODE: u32 = 0o755;
 const REGULAR_MODE: u32 = 0o644;
 const BUILD_PROFILE: &str = "release";
 const COMPLETED_BINARY: &str = "tillingctl";
-const REPOSITORY_FILES: [(&str, &str); 4] = [
+const REPOSITORY_FILES: [(&str, &str); 6] = [
     (
         "packaging/sessions/tilling.desktop",
         "usr/share/wayland-sessions/tilling.desktop",
+    ),
+    (
+        "packaging/systemd/tilling-session.target",
+        "usr/share/systemd/user/tilling-session.target",
+    ),
+    (
+        "packaging/portals/tilling-portals.conf",
+        "usr/share/xdg-desktop-portal/tilling-portals.conf",
     ),
     ("config/default.toml", "usr/share/tilling/config.toml"),
     ("LICENSE", "usr/share/doc/tilling/copyright"),
