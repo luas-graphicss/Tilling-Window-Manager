@@ -6,9 +6,16 @@ use crate::layout::{BspTree, LayoutError};
 use crate::window::WindowMode;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct FormerOutput {
+    pub(crate) name: String,
+    pub(crate) showing: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Workspace {
     pub(crate) name: String,
     pub(crate) output: Option<OutputId>,
+    pub(crate) former_output: Option<FormerOutput>,
     pub(crate) windows: Vec<WindowId>,
     pub(crate) focus: FocusOrder,
     pub(crate) layout: BspTree,
@@ -19,6 +26,7 @@ impl Workspace {
         Self {
             name,
             output,
+            former_output: None,
             windows: Vec::new(),
             focus: FocusOrder::default(),
             layout: BspTree::default(),
