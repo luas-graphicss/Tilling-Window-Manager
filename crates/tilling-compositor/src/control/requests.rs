@@ -1,5 +1,5 @@
 use tilling_config::ConfigSource;
-use tilling_core::layout::Direction;
+use tilling_core::layout::{Direction, LayoutKind};
 use tilling_core::{Command, ModeChange, WindowId, WindowMode};
 use tilling_ipc::{
     Call, Capability, ConfigInfo, Layout, Outcome, PROTOCOL_VERSION, Reply, Request, ResourceId,
@@ -13,7 +13,6 @@ use crate::runtime::Compositor;
 
 const LOCK_UNAVAILABLE: &str = "session locking is not available";
 const EVENTS_NOT_NEGOTIATED: &str = "the events capability was not negotiated";
-const LAYOUT_UNAVAILABLE: &str = "only the bsp layout is available";
 const NOWHERE_TO_FLOAT: &str = "window is not on a workspace shown by an output";
 
 impl Compositor {
@@ -54,7 +53,11 @@ impl Compositor {
                 let direction = core_direction(direction);
                 self.accept(Command::MoveWindow { window, direction })
             }
-            Call::SetLayout { workspace, layout } => self.set_layout(workspace, layout),
+            Call::SetLayout { workspace, layout } => {
+                let workspace = resources::workspace(&self.desktop, workspace)?;
+                let layout = core_layout(layout);
+                self.accept(Command::SetLayout { workspace, layout })
+            }
             Call::ResizeWindow { window, delta } => {
                 let window = resources::window(&self.desktop, window)?;
                 self.accept(Command::ResizeSplit { window, delta })
@@ -100,16 +103,6 @@ impl Compositor {
         ConfigInfo {
             revision: self.config_revision,
             path,
-        }
-    }
-
-    fn set_layout(&self, workspace: ResourceId, layout: Layout) -> Result<Reply, Refusal> {
-        resources::workspace(&self.desktop, workspace)?;
-        match layout {
-            Layout::Bsp => Ok(self.accepted()),
-            Layout::MasterStack | Layout::Monocle => {
-                Err(Refusal::Invalid(LAYOUT_UNAVAILABLE.to_owned()))
-            }
         }
     }
 
@@ -176,6 +169,14 @@ impl Compositor {
             workspaces: views::workspaces(&self.desktop),
             windows: views::windows(&self.desktop),
         }))
+    }
+}
+
+fn core_layout(layout: Layout) -> LayoutKind {
+    match layout {
+        Layout::Bsp => LayoutKind::Bsp,
+        Layout::MasterStack => LayoutKind::MasterStack,
+        Layout::Monocle => LayoutKind::Monocle,
     }
 }
 

@@ -150,7 +150,6 @@ fn command_issued_against_a_stale_revision_changes_nothing() {
 fn unknown_or_unavailable_requests_are_refused_with_their_reason() {
     let harness = Harness::start();
     let mut control = harness.control();
-    let first = workspaces(&mut control)[0].id;
     let before = harness.snapshot().revision;
     let nowhere = ResourceId {
         index: 40,
@@ -160,7 +159,7 @@ fn unknown_or_unavailable_requests_are_refused_with_their_reason() {
     let missing = control.call(Call::FocusWindow { window: nowhere }, None);
     let layout = control.call(
         Call::SetLayout {
-            workspace: first,
+            workspace: nowhere,
             layout: Layout::Monocle,
         },
         None,
@@ -173,9 +172,46 @@ fn unknown_or_unavailable_requests_are_refused_with_their_reason() {
             message: "window 40v3 does not exist".to_owned()
         }
     );
-    assert!(matches!(layout.unwrap(), Outcome::ValidationError { .. }));
+    assert!(matches!(layout.unwrap(), Outcome::NotFound { .. }));
     assert!(matches!(lock.unwrap(), Outcome::NotPermitted { .. }));
     assert_eq!(harness.snapshot().revision, before);
+}
+
+#[test]
+fn layout_set_over_the_socket_rearranges_the_workspace_and_is_reported() {
+    let harness = Harness::start();
+    let mut client = harness.connect();
+    for title in ["editor", "shell", "logs"] {
+        let window = client.create_toplevel("org.example.Terminal", title);
+        client.map(window).unwrap();
+        client.settle().unwrap();
+    }
+    harness.published(3);
+    let mut control = harness.control();
+    let first = workspaces(&mut control)[0].id;
+    let set_layout = |layout| Call::SetLayout {
+        workspace: first,
+        layout,
+    };
+
+    request(&mut control, set_layout(Layout::Monocle));
+    client.settle().unwrap();
+    let monocle = harness.published(1);
+    let reported = workspaces(&mut control);
+    request(&mut control, set_layout(Layout::Bsp));
+    client.settle().unwrap();
+    let bsp = harness.published(3);
+
+    assert!(monocle.scene.windows()[0].focused);
+    assert_eq!(
+        (reported[0].layout, reported[0].active),
+        (Layout::Monocle, true)
+    );
+    assert_eq!(
+        (reported[1].layout, reported[1].active),
+        (Layout::Bsp, false)
+    );
+    assert_eq!(bsp.scene.windows().len(), 3);
 }
 
 #[test]
