@@ -9,6 +9,7 @@ members = [
     "crates/tilling-ipc",
     "crates/tilling-test-support",
     "tests/smithay-contract",
+    "xtask",
 ]
 
 [workspace.package]
