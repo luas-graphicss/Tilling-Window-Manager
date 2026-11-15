@@ -1,5 +1,5 @@
 use tilling_ipc::{
-    Call, Direction, DocumentError, Event, EventFrame, FrameDecoder, Outcome, OutputChange,
+    Call, Direction, DocumentError, Event, EventFrame, FrameDecoder, Layout, Outcome, OutputChange,
     OutputInfo, OutputMode, OutputPosition, OutputTransform, PROTOCOL_VERSION, Reply, Request,
     ResourceId, Response, ServerMessage, Snapshot, VersionInfo, WindowInfo, WindowMode,
     WorkspaceInfo, decode, encode,
@@ -36,6 +36,8 @@ fn workspace_info() -> WorkspaceInfo {
         output: Some(OUTPUT),
         focused_window: Some(WINDOW),
         windows: vec![WINDOW],
+        layout: Layout::MasterStack,
+        active: true,
     }
 }
 
@@ -161,7 +163,7 @@ fn every_call_survives_a_round_trip() {
         },
         Call::SetLayout {
             workspace: WORKSPACE,
-            layout: tilling_ipc::Layout::Bsp,
+            layout: Layout::Bsp,
         },
         Call::ResizeWindow {
             window: WINDOW,
@@ -298,6 +300,16 @@ fn query_replies_survive_a_round_trip() {
         });
         assert_eq!(round_trip(&message), message);
     }
+}
+
+#[test]
+fn workspace_from_an_older_compositor_reads_as_inactive_bsp() {
+    let document = br#"{"id":{"index":0,"generation":0},"name":"1","output":null,"focused_window":null,"windows":[]}"#;
+
+    let workspace: WorkspaceInfo = decode(document).unwrap();
+
+    assert_eq!(workspace.layout, Layout::Bsp);
+    assert!(!workspace.active);
 }
 
 #[test]

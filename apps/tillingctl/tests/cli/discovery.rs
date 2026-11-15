@@ -65,9 +65,9 @@ fn several_instances_are_refused_until_one_is_chosen() {
 
     assert!(standard_error(&ambiguous).contains("several instances are running (alpha, beta)"));
     assert_eq!(ambiguous.status.code(), Some(3));
-    assert_eq!(standard_output(&by_name), "alpha (protocol 1.1)\n");
-    assert_eq!(standard_output(&by_socket), "beta (protocol 1.1)\n");
-    assert_eq!(standard_output(&by_environment), "beta (protocol 1.1)\n");
+    assert_eq!(standard_output(&by_name), "alpha (protocol 1.2)\n");
+    assert_eq!(standard_output(&by_socket), "beta (protocol 1.2)\n");
+    assert_eq!(standard_output(&by_environment), "beta (protocol 1.2)\n");
 }
 
 #[test]

@@ -38,7 +38,7 @@ impl Compositor {
             | Effect::WorkspaceArranged(id)
             | Effect::WorkspaceShown { workspace: id, .. } => desktop
                 .workspace(id)
-                .map(|workspace| Event::WorkspaceChanged(views::workspace(id, workspace))),
+                .map(|workspace| Event::WorkspaceChanged(views::workspace(desktop, id, workspace))),
             Effect::WindowOpened(id) => desktop
                 .window(id)
                 .map(|window| Event::WindowOpened(views::window(desktop, id, window))),

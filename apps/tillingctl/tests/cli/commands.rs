@@ -57,7 +57,7 @@ fn query_prints_the_reply_of_the_only_running_instance() {
         .output()
         .unwrap();
 
-    assert_eq!(standard_output(&output), "tilling-test (protocol 1.1)\n");
+    assert_eq!(standard_output(&output), "tilling-test (protocol 1.2)\n");
     assert_eq!(standard_error(&output), "");
     assert_eq!(output.status.code(), Some(0));
 }

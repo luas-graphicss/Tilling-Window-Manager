@@ -1,6 +1,6 @@
 use tilling_ipc::endpoint::InstanceName;
 use tilling_ipc::{
-    DiagnosticsInfo, Event, EventFrame, Outcome, OutputInfo, Reply, ResourceId, Snapshot,
+    DiagnosticsInfo, Event, EventFrame, Layout, Outcome, OutputInfo, Reply, ResourceId, Snapshot,
     WindowInfo, WindowMode, WorkspaceInfo,
 };
 
@@ -140,9 +140,15 @@ fn describe_output(output: &OutputInfo) -> String {
 
 fn describe_workspace(workspace: &WorkspaceInfo) -> String {
     format!(
-        "workspace {}  {}  output {}  focused {}  windows {}",
+        "workspace {}  {}  {}  {}  output {}  focused {}  windows {}",
         identifier(workspace.id),
         printable(&workspace.name),
+        layout_name(workspace.layout),
+        if workspace.active {
+            "active"
+        } else {
+            "inactive"
+        },
         optional(workspace.output),
         optional(workspace.focused_window),
         workspace.windows.len()
@@ -163,6 +169,14 @@ fn describe_window(window: &WindowInfo) -> String {
         window.app_id.as_deref().map_or_else(absent, printable),
         window.title.as_deref().map_or_else(absent, printable)
     )
+}
+
+fn layout_name(layout: Layout) -> &'static str {
+    match layout {
+        Layout::Bsp => "bsp",
+        Layout::MasterStack => "master-stack",
+        Layout::Monocle => "monocle",
+    }
 }
 
 fn mode_name(mode: WindowMode) -> &'static str {
@@ -240,7 +254,27 @@ mod tests {
             }),
         };
 
-        assert_eq!(text(&reply), "tilling 0.1.0 (protocol 1.1)");
+        assert_eq!(text(&reply), "tilling 0.1.0 (protocol 1.2)");
+    }
+
+    #[test]
+    fn workspaces_name_their_layout_and_whether_they_are_active() {
+        let reply = Outcome::Success {
+            result: Reply::Workspaces(vec![WorkspaceInfo {
+                id: WORKSPACE,
+                name: "web".to_owned(),
+                output: None,
+                focused_window: Some(WINDOW),
+                windows: vec![WINDOW],
+                layout: Layout::MasterStack,
+                active: true,
+            }]),
+        };
+
+        assert_eq!(
+            text(&reply),
+            "workspace 0:0  web  master-stack  active  output -  focused 3:1  windows 1"
+        );
     }
 
     #[test]
