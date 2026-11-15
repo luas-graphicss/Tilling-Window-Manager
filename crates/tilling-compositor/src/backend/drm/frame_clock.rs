@@ -5,7 +5,7 @@ pub(super) enum Wait {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-enum Phase {
+enum State {
     #[default]
     Idle,
     Waiting(Wait),
@@ -14,37 +14,37 @@ enum Phase {
 
 #[derive(Debug, Default)]
 pub(super) struct FrameClock {
-    phase: Phase,
+    state: State,
     redraw_wanted: bool,
 }
 
 impl FrameClock {
     pub(super) fn request_redraw(&mut self) -> bool {
-        match self.phase {
-            Phase::Idle => true,
-            Phase::Waiting(_) => {
+        match self.state {
+            State::Idle => true,
+            State::Waiting(_) => {
                 self.redraw_wanted = true;
                 false
             }
-            Phase::Halted => false,
+            State::Halted => false,
         }
     }
 
     pub(super) fn wait_for(&mut self, wait: Wait) {
-        self.phase = Phase::Waiting(wait);
+        self.state = State::Waiting(wait);
         self.redraw_wanted = false;
     }
 
     pub(super) fn finish(&mut self, wait: Wait) -> bool {
-        if self.phase != Phase::Waiting(wait) {
+        if self.state != State::Waiting(wait) {
             return false;
         }
-        self.phase = Phase::Idle;
+        self.state = State::Idle;
         std::mem::take(&mut self.redraw_wanted)
     }
 
     pub(super) fn halt(&mut self) {
-        self.phase = Phase::Halted;
+        self.state = State::Halted;
         self.redraw_wanted = false;
     }
 
