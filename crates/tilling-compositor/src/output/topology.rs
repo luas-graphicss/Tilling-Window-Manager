@@ -5,7 +5,9 @@ use smithay::output::Mode;
 use smithay::output::{Output, PhysicalProperties, Scale as AdvertisedScale};
 use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
 use smithay::reexports::wayland_server::backend::GlobalId;
+use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
 use smithay::utils::Point;
+use smithay::wayland::fractional_scale::with_fractional_scale;
 use tilling_core::{Command, Effect, OutputId, Transition, WindowId};
 
 use super::description::OutputDescription;
@@ -120,7 +122,11 @@ impl Compositor {
             let Some(managed) = self.windows.by_id(placed.id) else {
                 continue;
             };
-            managed.window.with_surfaces(|surface, _| {
+            let scale = self
+                .outputs
+                .by_id(placed.output)
+                .map(|output| output.current_scale().fractional_scale());
+            managed.window.with_surfaces(|surface, states| {
                 for (id, output) in self.outputs.iter() {
                     if id == placed.output {
                         output.enter(surface);
@@ -128,8 +134,28 @@ impl Compositor {
                         output.leave(surface);
                     }
                 }
+                if let Some(scale) = scale {
+                    with_fractional_scale(states, |fractional| {
+                        fractional.set_preferred_scale(scale);
+                    });
+                }
             });
         }
+    }
+
+    pub(crate) fn preferred_scale_of(&self, toplevel: &WlSurface) -> Option<f64> {
+        let shown_on = self
+            .windows
+            .id_of(toplevel)
+            .and_then(|window| self.output_showing(window));
+        let output = shown_on.or_else(|| self.active_output())?;
+        Some(output.current_scale().fractional_scale())
+    }
+
+    fn active_output(&self) -> Option<&Output> {
+        let active = self.desktop.workspace(self.desktop.active_workspace())?;
+        let owner = active.output().and_then(|owner| self.outputs.by_id(owner));
+        owner.or_else(|| self.outputs.iter().next().map(|(_, output)| output))
     }
 
     fn retire_global(&mut self, global: GlobalId) {

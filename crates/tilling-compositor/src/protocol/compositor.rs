@@ -47,7 +47,7 @@ impl ShmHandler for Compositor {
     }
 }
 
-fn root_of(surface: &WlSurface) -> WlSurface {
+pub(super) fn root_of(surface: &WlSurface) -> WlSurface {
     let mut root = surface.clone();
     while let Some(parent) = get_parent(&root) {
         root = parent;

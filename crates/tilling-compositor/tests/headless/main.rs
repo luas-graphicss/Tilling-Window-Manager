@@ -9,6 +9,7 @@ mod lifecycle;
 mod outputs;
 mod pointer;
 mod popups;
+mod scale;
 mod subsurfaces;
 mod tiling;
 mod transactions;

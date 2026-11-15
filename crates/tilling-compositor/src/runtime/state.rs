@@ -9,9 +9,12 @@ use smithay::reexports::calloop::{LoopHandle, LoopSignal};
 use smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::WmCapabilities;
 use smithay::reexports::wayland_server::DisplayHandle;
 use smithay::wayland::compositor::CompositorState;
+use smithay::wayland::fractional_scale::FractionalScaleManagerState;
+use smithay::wayland::output::OutputManagerState;
 use smithay::wayland::shell::xdg::XdgShellState;
 use smithay::wayland::shell::xdg::decoration::XdgDecorationState;
 use smithay::wayland::shm::ShmState;
+use smithay::wayland::viewporter::ViewporterState;
 use tilling_config::{ConfigSource, DEFAULT_MODE, ValidatedConfig};
 use tilling_core::DesktopState;
 
@@ -86,6 +89,9 @@ impl Compositor {
             [WmCapabilities::Fullscreen],
         );
         XdgDecorationState::new::<Self>(&display_handle);
+        ViewporterState::new::<Self>(&display_handle);
+        FractionalScaleManagerState::new::<Self>(&display_handle);
+        OutputManagerState::new_with_xdg_output::<Self>(&display_handle);
         let mut seat_state = SeatState::new();
         let mut seat = seat_state.new_wl_seat(&display_handle, SEAT_NAME);
         let keyboard = &config.input().keyboard;

@@ -22,8 +22,11 @@ fn only_the_implemented_globals_are_advertised() {
             ("wl_seat", 9),
             ("wl_shm", 2),
             ("wl_subcompositor", 1),
+            ("wp_fractional_scale_manager_v1", 1),
+            ("wp_viewporter", 1),
             ("xdg_wm_base", 6),
             ("zxdg_decoration_manager_v1", 1),
+            ("zxdg_output_manager_v1", 3),
         ]
     );
 }
