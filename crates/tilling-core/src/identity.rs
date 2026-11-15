@@ -20,6 +20,18 @@ macro_rules! identifier {
         #[serde(transparent)]
         pub struct $name(Key);
 
+        impl $name {
+            #[must_use]
+            pub const fn index(self) -> u32 {
+                self.0.index
+            }
+
+            #[must_use]
+            pub const fn generation(self) -> u32 {
+                self.0.generation
+            }
+        }
+
         impl Identifier for $name {
             fn from_key(key: Key) -> Self {
                 Self(key)
@@ -241,5 +253,17 @@ mod tests {
 
         assert_eq!(first.to_string(), "0v0");
         assert_eq!(second.to_string(), "0v1");
+    }
+
+    #[test]
+    fn identifiers_expose_index_and_generation() {
+        let mut arena: Arena<WorkspaceId, ()> = Arena::new();
+        let first = arena.insert(()).unwrap();
+        arena.remove(first);
+        let reused = arena.insert(()).unwrap();
+        let appended = arena.insert(()).unwrap();
+
+        assert_eq!((reused.index(), reused.generation()), (0, 1));
+        assert_eq!((appended.index(), appended.generation()), (1, 0));
     }
 }

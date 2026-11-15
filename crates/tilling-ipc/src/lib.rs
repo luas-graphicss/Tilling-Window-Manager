@@ -1,11 +1,18 @@
+pub mod client;
+pub mod endpoint;
+pub mod server;
+
+mod credentials;
 mod document;
 mod event;
 mod framing;
+mod inbound;
 mod request;
 mod resource;
 mod response;
 mod version;
 
+pub use credentials::{ForeignPeer, PeerError};
 pub use document::{DocumentError, MAX_DEPTH, decode, encode};
 pub use event::{Event, EventFrame};
 pub use framing::{FrameDecoder, FrameError, MAX_FRAME_BYTES, encode_frame};

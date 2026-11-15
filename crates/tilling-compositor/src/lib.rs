@@ -1,0 +1,22 @@
+mod backend;
+mod control;
+mod desktop;
+mod error;
+mod geometry;
+mod input;
+mod options;
+mod protocol;
+mod render;
+mod runtime;
+mod scene;
+mod shell;
+mod transaction;
+
+pub use error::CompositorError;
+pub use input::SyntheticInput;
+pub use options::{BackendKind, Options, VirtualOutput};
+pub use render::FrameStats;
+pub use runtime::instance::InstanceError;
+pub use runtime::run;
+pub use runtime::session::{Session, SessionSnapshot};
+pub use scene::{BORDER_WIDTH, Scene, SceneLayer, SceneWindow};
