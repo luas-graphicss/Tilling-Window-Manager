@@ -1,6 +1,6 @@
 [package]
 name = "tilling-ipc"
-description = "Framing, messages and version negotiation of the Tilling control protocol"
+description = "Framing, messages, version negotiation and socket transport of the Tilling control protocol"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+rustix = { version = "1.1.6", default-features = false, features = ["net", "process", "std"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
