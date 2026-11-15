@@ -46,7 +46,9 @@ impl XdgShellHandler for Compositor {
         }
     }
 
-    fn grab(&mut self, _surface: PopupSurface, _seat: WlSeat, _serial: Serial) {}
+    fn grab(&mut self, surface: PopupSurface, seat: WlSeat, serial: Serial) {
+        self.grab_popup(surface, &seat, serial);
+    }
 
     fn reposition_request(
         &mut self,
@@ -54,10 +56,7 @@ impl XdgShellHandler for Compositor {
         positioner: PositionerState,
         token: u32,
     ) {
-        surface.with_pending_state(|state| {
-            state.geometry = positioner.get_geometry();
-            state.positioner = positioner;
-        });
+        self.place_popup(&surface, positioner);
         surface.send_repositioned(token);
     }
 

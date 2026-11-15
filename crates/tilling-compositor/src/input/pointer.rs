@@ -33,6 +33,7 @@ impl Compositor {
             button,
             state,
         };
+        self.input_serials.record(event.serial);
         pointer.button(self, &event);
         pointer.frame(self);
     }

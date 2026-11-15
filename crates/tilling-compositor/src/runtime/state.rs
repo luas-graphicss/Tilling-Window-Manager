@@ -17,7 +17,7 @@ use super::{OutputRegistry, Runtime};
 use crate::control::ControlPeers;
 use crate::desktop::initial_desktop;
 use crate::error::CompositorError;
-use crate::input::{BindingTable, Launcher};
+use crate::input::{BindingTable, InputSerials, Launcher};
 use crate::scene::Scene;
 use crate::shell::WindowRegistry;
 use crate::transaction::Coordinator;
@@ -49,6 +49,7 @@ pub(crate) struct Compositor {
     pub(crate) bindings: BindingTable,
     pub(crate) keyboard_mode: String,
     pub(crate) suppressed_keys: HashSet<Keycode>,
+    pub(crate) input_serials: InputSerials,
     pub(crate) launcher: Launcher,
     pub(crate) desktop: DesktopState,
     pub(crate) windows: WindowRegistry,
@@ -109,6 +110,7 @@ impl Compositor {
             bindings,
             keyboard_mode: DEFAULT_MODE.to_owned(),
             suppressed_keys: HashSet::new(),
+            input_serials: InputSerials::default(),
             launcher,
             desktop,
             windows: WindowRegistry::default(),

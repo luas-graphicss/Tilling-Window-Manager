@@ -12,6 +12,7 @@ impl Compositor {
             return;
         };
         let serial = SERIAL_COUNTER.next_serial();
+        self.input_serials.record(serial);
         let intercepted = keyboard.input(
             self,
             keycode,

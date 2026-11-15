@@ -5,5 +5,6 @@ mod keyboard;
 mod keys;
 mod lifecycle;
 mod pointer;
+mod popups;
 mod tiling;
 mod transactions;
