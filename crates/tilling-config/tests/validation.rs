@@ -1,6 +1,6 @@
 use tilling_config::{
-    Action, ConfigError, ConfigSource, DEFAULT_MODE, MAX_CONFIG_BYTES, RuleMode, RuleOutcome,
-    ValidatedConfig, load, parse,
+    Action, ConfigError, ConfigSource, DEFAULT_MODE, MAX_CONFIG_BYTES, ModeConfig, OutputTransform,
+    RuleMode, RuleOutcome, TouchpadConfig, ValidatedConfig, load, parse,
 };
 use tilling_core::WindowMetadata;
 use tilling_core::geometry::Scale;
@@ -407,4 +407,118 @@ fn workspace_lists_must_be_unique_and_non_empty() {
     assert!(duplicated.contains(&"workspaces[1]: `a` is listed more than once".to_owned()));
     assert!(duplicated.contains(&"workspaces[2]: must not be empty".to_owned()));
     assert!(empty.contains(&"workspaces: must list between 1 and 64 names".to_owned()));
+}
+
+#[test]
+fn outputs_describe_mode_rotation_and_the_monitor_they_apply_to() {
+    let config = valid(
+        r#"
+schema_version = 1
+
+[[outputs]]
+name = "DP-1"
+monitor = "DEL/DELL U2720Q/7RGSN83"
+mode = { width = 2560, height = 1440, refresh = 143.912 }
+transform = "flipped-90"
+
+[[outputs]]
+name = "HDMI-A-1"
+mode = { width = 1920, height = 1080 }
+"#,
+    );
+
+    let [desk, spare] = config.outputs() else {
+        panic!("expected two outputs");
+    };
+    assert_eq!(desk.monitor.as_deref(), Some("DEL/DELL U2720Q/7RGSN83"));
+    assert_eq!(
+        desk.mode,
+        Some(ModeConfig {
+            width: 2560,
+            height: 1440,
+            refresh_millihertz: Some(143_912)
+        })
+    );
+    assert_eq!(desk.transform, Some(OutputTransform::Flipped90));
+    assert_eq!(
+        spare.mode,
+        Some(ModeConfig {
+            width: 1920,
+            height: 1080,
+            refresh_millihertz: None
+        })
+    );
+    assert_eq!(spare.transform, None);
+}
+
+#[test]
+fn output_modes_and_monitor_keys_outside_the_limits_are_reported() {
+    let problems = diagnostics(
+        r#"
+schema_version = 1
+
+[[outputs]]
+name = "DP-1"
+monitor = "DEL/DELL U2720Q/7RGSN83"
+mode = { width = 0, height = 1440 }
+
+[[outputs]]
+name = "DP-2"
+monitor = "DEL/DELL U2720Q/7RGSN83"
+mode = { width = 2560, height = 1440, refresh = 0.5 }
+"#,
+    );
+
+    assert_eq!(
+        problems,
+        [
+            "outputs[0].mode: width and height must be between 1 and 16384",
+            "outputs[1].monitor: `DEL/DELL U2720Q/7RGSN83` is configured more than once",
+            "outputs[1].mode.refresh: must be a rate between 1 and 1000 Hz",
+        ]
+    );
+}
+
+#[test]
+fn unknown_output_rotation_is_reported_on_its_line() {
+    let (line, _) =
+        syntax_error("schema_version = 1\n\n[[outputs]]\nname = \"DP-1\"\ntransform = \"45\"\n");
+
+    assert_eq!(line, 5);
+}
+
+#[test]
+fn touchpad_settings_have_defaults_and_their_own_table() {
+    const KEYBOARD_AND_POINTER: &str = r#"
+schema_version = 1
+
+[input.keyboard]
+layout = "br"
+repeat_rate = 30
+repeat_delay_ms = 400
+
+[input.pointer]
+natural_scroll = false
+acceleration = 0.5
+"#;
+    let tuned = format!(
+        "{KEYBOARD_AND_POINTER}\n[input.touchpad]\ntap_to_click = true\nnatural_scroll = true\ndisable_while_typing = false\n"
+    );
+
+    assert_eq!(
+        valid(KEYBOARD_AND_POINTER).input().touchpad,
+        TouchpadConfig {
+            tap_to_click: false,
+            natural_scroll: false,
+            disable_while_typing: true
+        }
+    );
+    assert_eq!(
+        valid(&tuned).input().touchpad,
+        TouchpadConfig {
+            tap_to_click: true,
+            natural_scroll: true,
+            disable_while_typing: false
+        }
+    );
 }
