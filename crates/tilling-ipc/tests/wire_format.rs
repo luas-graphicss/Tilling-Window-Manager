@@ -1,7 +1,8 @@
 use tilling_ipc::{
-    Call, Direction, DocumentError, Event, EventFrame, FrameDecoder, Outcome, OutputInfo,
-    PROTOCOL_VERSION, Reply, Request, ResourceId, Response, ServerMessage, Snapshot, VersionInfo,
-    WindowInfo, WindowMode, WorkspaceInfo, decode, encode,
+    Call, Direction, DocumentError, Event, EventFrame, FrameDecoder, Outcome, OutputChange,
+    OutputInfo, OutputMode, OutputPosition, OutputTransform, PROTOCOL_VERSION, Reply, Request,
+    ResourceId, Response, ServerMessage, Snapshot, VersionInfo, WindowInfo, WindowMode,
+    WorkspaceInfo, decode, encode,
 };
 
 const WINDOW: ResourceId = ResourceId {
@@ -107,6 +108,43 @@ fn requests_without_params_omit_them() {
     );
 }
 
+fn whole_output_change() -> OutputChange {
+    OutputChange {
+        mode: Some(OutputMode {
+            width: 2560,
+            height: 1440,
+            refresh_millihertz: Some(143_912),
+        }),
+        position: Some(OutputPosition { x: -2560, y: 0 }),
+        scale: Some(1.25),
+        transform: Some(OutputTransform::Flipped90),
+    }
+}
+
+#[test]
+fn output_change_names_only_the_settings_it_touches() {
+    let request = Request {
+        request_id: 3,
+        expected_revision: None,
+        call: Call::ConfigureOutput {
+            output: OUTPUT,
+            change: OutputChange {
+                scale: Some(1.5),
+                transform: Some(OutputTransform::Rotated90),
+                ..OutputChange::default()
+            },
+        },
+    };
+
+    let json = String::from_utf8(payload_of(&encode(&request).unwrap())).unwrap();
+
+    assert_eq!(
+        json,
+        r#"{"request_id":3,"method":"configure_output","params":{"output":{"index":1,"generation":4},"change":{"scale":1.5,"transform":"90"}}}"#
+    );
+    assert_eq!(round_trip(&request), request);
+}
+
 #[test]
 fn every_call_survives_a_round_trip() {
     let calls = [
@@ -136,6 +174,12 @@ fn every_call_survives_a_round_trip() {
         Call::SwitchWorkspace {
             workspace: WORKSPACE,
         },
+        Call::ConfigureOutput {
+            output: OUTPUT,
+            change: whole_output_change(),
+        },
+        Call::ConfirmOutputChange,
+        Call::RevertOutputChange,
         Call::ReloadConfig,
         Call::RequestLock,
         Call::Quit,
@@ -227,7 +271,17 @@ fn query_replies_survive_a_round_trip() {
             outputs: 1,
             workspaces: 9,
             windows: 3,
+            input_devices: 2,
+            frames_presented: 1200,
+            frames_damaged: 310,
+            resident_kib: 48_212,
+            open_descriptors: 37,
+            cpu_time_ms: 950,
         }),
+        Reply::OutputChangePending {
+            revision: 3,
+            confirm_within_ms: 15_000,
+        },
         Reply::Subscribed(Snapshot {
             sequence: 0,
             revision: 2,

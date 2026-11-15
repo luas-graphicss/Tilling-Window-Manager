@@ -92,7 +92,7 @@ impl Compositor {
             return;
         };
         self.windows.mark_mapped(surface, window);
-        if let Some(output) = self.outputs.primary() {
+        if let Some(output) = self.output_showing(window) {
             output.enter(surface);
         }
         self.react(&transition);

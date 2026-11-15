@@ -1,6 +1,6 @@
 use smithay::backend::input::{
     AbsolutePositionEvent, Axis, Event, InputBackend, InputEvent, KeyboardKeyEvent,
-    PointerAxisEvent, PointerButtonEvent,
+    PointerAxisEvent, PointerButtonEvent, PointerMotionEvent,
 };
 use smithay::output::Output;
 use smithay::utils::{Logical, Size};
@@ -15,13 +15,19 @@ impl Compositor {
     pub(crate) fn handle_device_event<B: InputBackend>(
         &mut self,
         event: InputEvent<B>,
-        output: &Output,
+        absolute_target: Option<&Output>,
     ) {
         match event {
             InputEvent::Keyboard { event } => {
                 self.handle_key(event.key_code(), event.state(), event.time_msec());
             }
+            InputEvent::PointerMotion { event } => {
+                self.handle_pointer_delta(event.delta(), event.time_msec());
+            }
             InputEvent::PointerMotionAbsolute { event } => {
+                let Some(output) = absolute_target else {
+                    return;
+                };
                 let Some(area) = logical_size(output) else {
                     return;
                 };
@@ -43,7 +49,8 @@ impl Compositor {
 fn logical_size(output: &Output) -> Option<Size<i32, Logical>> {
     let scale = output.current_scale().fractional_scale();
     let mode = output.current_mode()?;
-    Some(mode.size.to_f64().to_logical(scale).to_i32_round())
+    let oriented = output.current_transform().transform_size(mode.size);
+    Some(oriented.to_f64().to_logical(scale).to_i32_round())
 }
 
 fn scroll_of<B: InputBackend>(event: &B::PointerAxisEvent) -> Scroll {

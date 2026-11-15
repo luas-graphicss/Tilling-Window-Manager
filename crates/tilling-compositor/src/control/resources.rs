@@ -40,6 +40,14 @@ pub(super) fn workspace(desktop: &DesktopState, id: ResourceId) -> Result<Worksp
         .ok_or_else(|| missing("workspace", id))
 }
 
+pub(super) fn output(desktop: &DesktopState, id: ResourceId) -> Result<OutputId, Refusal> {
+    desktop
+        .outputs()
+        .map(|(output, _)| output)
+        .find(|output| output_id(*output) == id)
+        .ok_or_else(|| missing("output", id))
+}
+
 fn missing(kind: &str, id: ResourceId) -> Refusal {
     Refusal::NotFound(format!(
         "{kind} {}v{} does not exist",

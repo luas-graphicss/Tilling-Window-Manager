@@ -43,6 +43,8 @@ pub(crate) struct RawLayout {
 pub(crate) struct RawInput {
     pub(crate) keyboard: RawKeyboard,
     pub(crate) pointer: RawPointer,
+    #[serde(default)]
+    pub(crate) touchpad: RawTouchpad,
 }
 
 #[derive(Debug, Deserialize)]
@@ -60,6 +62,24 @@ pub(crate) struct RawKeyboard {
 pub(crate) struct RawPointer {
     pub(crate) natural_scroll: bool,
     pub(crate) acceleration: f64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RawTouchpad {
+    pub(crate) tap_to_click: bool,
+    pub(crate) natural_scroll: bool,
+    pub(crate) disable_while_typing: bool,
+}
+
+impl Default for RawTouchpad {
+    fn default() -> Self {
+        Self {
+            tap_to_click: false,
+            natural_scroll: false,
+            disable_while_typing: true,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -126,8 +146,39 @@ pub(crate) enum RawRuleMode {
 #[serde(deny_unknown_fields)]
 pub(crate) struct RawOutput {
     pub(crate) name: String,
+    pub(crate) monitor: Option<String>,
     pub(crate) scale: Option<f64>,
     pub(crate) position: Option<RawPosition>,
+    pub(crate) mode: Option<RawMode>,
+    pub(crate) transform: Option<RawTransform>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RawMode {
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    pub(crate) refresh: Option<f64>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub(crate) enum RawTransform {
+    #[serde(rename = "normal")]
+    Normal,
+    #[serde(rename = "90")]
+    Rotated90,
+    #[serde(rename = "180")]
+    Rotated180,
+    #[serde(rename = "270")]
+    Rotated270,
+    #[serde(rename = "flipped")]
+    Flipped,
+    #[serde(rename = "flipped-90")]
+    Flipped90,
+    #[serde(rename = "flipped-180")]
+    Flipped180,
+    #[serde(rename = "flipped-270")]
+    Flipped270,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]

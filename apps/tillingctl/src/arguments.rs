@@ -1,9 +1,13 @@
+mod outputs;
+
 use std::path::PathBuf;
 use std::time::Duration;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use tilling_ipc::endpoint::InstanceName;
 use tilling_ipc::{Call, ResourceId};
+
+pub use outputs::OutputAction;
 
 const DEFAULT_TIMEOUT_MILLISECONDS: u64 = 5000;
 
@@ -57,7 +61,7 @@ impl Arguments {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
+#[derive(Debug, Clone, PartialEq, Subcommand)]
 pub enum Command {
     #[command(about = "Query the compositor")]
     Get {
@@ -102,6 +106,11 @@ pub enum Command {
         #[arg(value_name = "WORKSPACE", value_parser = parse_resource_id)]
         workspace: ResourceId,
     },
+    #[command(about = "Change an output and keep the change once it is confirmed")]
+    Output {
+        #[command(subcommand)]
+        action: OutputAction,
+    },
     #[command(about = "Reload the configuration")]
     Reload,
     #[command(about = "Ask the session to lock")]
@@ -133,6 +142,7 @@ impl Command {
                 mode: mode.into(),
             },
             Self::Workspace { workspace } => Call::SwitchWorkspace { workspace },
+            Self::Output { action } => action.call(),
             Self::Reload => Call::ReloadConfig,
             Self::Lock => Call::RequestLock,
             Self::Quit => Call::Quit,

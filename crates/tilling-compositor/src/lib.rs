@@ -5,6 +5,7 @@ mod error;
 mod geometry;
 mod input;
 mod options;
+mod output;
 mod protocol;
 mod render;
 mod runtime;

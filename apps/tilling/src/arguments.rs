@@ -33,6 +33,7 @@ pub struct Arguments {
 pub enum Backend {
     Nested,
     Headless,
+    Drm,
 }
 
 impl From<Backend> for BackendKind {
@@ -40,6 +41,7 @@ impl From<Backend> for BackendKind {
         match backend {
             Backend::Nested => Self::Nested,
             Backend::Headless => Self::Headless,
+            Backend::Drm => Self::Drm,
         }
     }
 }
@@ -77,7 +79,14 @@ mod tests {
     }
 
     #[test]
+    fn drm_backend_can_be_chosen_for_a_native_session() {
+        let arguments = Arguments::try_parse_from(["tilling", "--backend", "drm"]).unwrap();
+
+        assert_eq!(BackendKind::from(arguments.backend), BackendKind::Drm);
+    }
+
+    #[test]
     fn unknown_backend_is_rejected() {
-        assert!(Arguments::try_parse_from(["tilling", "--backend", "drm"]).is_err());
+        assert!(Arguments::try_parse_from(["tilling", "--backend", "x11"]).is_err());
     }
 }

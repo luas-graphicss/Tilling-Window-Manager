@@ -6,6 +6,7 @@ use crate::schema::RawInput;
 pub struct InputConfig {
     pub keyboard: KeyboardConfig,
     pub pointer: PointerConfig,
+    pub touchpad: TouchpadConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,6 +23,13 @@ pub struct PointerConfig {
     pub acceleration: f64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TouchpadConfig {
+    pub tap_to_click: bool,
+    pub natural_scroll: bool,
+    pub disable_while_typing: bool,
+}
+
 pub(crate) fn validate(raw: RawInput, report: &mut Report) -> InputConfig {
     let keyboard = KeyboardConfig {
         layout: raw.keyboard.layout,
@@ -32,6 +40,11 @@ pub(crate) fn validate(raw: RawInput, report: &mut Report) -> InputConfig {
     let pointer = PointerConfig {
         natural_scroll: raw.pointer.natural_scroll,
         acceleration: raw.pointer.acceleration,
+    };
+    let touchpad = TouchpadConfig {
+        tap_to_click: raw.touchpad.tap_to_click,
+        natural_scroll: raw.touchpad.natural_scroll,
+        disable_while_typing: raw.touchpad.disable_while_typing,
     };
     if keyboard.layout.is_empty() || !is_xkb_name(&keyboard.layout) {
         report.reject(
@@ -63,7 +76,11 @@ pub(crate) fn validate(raw: RawInput, report: &mut Report) -> InputConfig {
             "must be a number between -1.0 and 1.0",
         );
     }
-    InputConfig { keyboard, pointer }
+    InputConfig {
+        keyboard,
+        pointer,
+        touchpad,
+    }
 }
 
 fn is_xkb_name(name: &str) -> bool {

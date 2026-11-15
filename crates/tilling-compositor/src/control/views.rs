@@ -1,5 +1,5 @@
 use tilling_core::{DesktopState, Output, OutputId, Window, WindowId, Workspace, WorkspaceId};
-use tilling_ipc::{DiagnosticsInfo, OutputInfo, WindowInfo, WindowMode, WorkspaceInfo};
+use tilling_ipc::{OutputInfo, WindowInfo, WindowMode, WorkspaceInfo};
 
 use super::resources::{output_id, window_id, workspace_id};
 
@@ -60,23 +60,10 @@ pub(super) fn window(desktop: &DesktopState, id: WindowId, window: &Window) -> W
     }
 }
 
-pub(super) fn diagnostics(desktop: &DesktopState) -> DiagnosticsInfo {
-    DiagnosticsInfo {
-        revision: desktop.revision(),
-        outputs: count(desktop.outputs().count()),
-        workspaces: count(desktop.workspaces().count()),
-        windows: count(desktop.windows().count()),
-    }
-}
-
 fn mode(mode: tilling_core::WindowMode) -> WindowMode {
     match mode {
         tilling_core::WindowMode::Tiled => WindowMode::Tiled,
         tilling_core::WindowMode::Floating(_) => WindowMode::Floating,
         tilling_core::WindowMode::Fullscreen(_) => WindowMode::Fullscreen,
     }
-}
-
-fn count(length: usize) -> u32 {
-    u32::try_from(length).unwrap_or(u32::MAX)
 }

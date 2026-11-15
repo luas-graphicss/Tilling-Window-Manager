@@ -11,6 +11,8 @@ use wayland_client::protocol::wl_shm::WlShm;
 use wayland_client::protocol::wl_subcompositor::WlSubcompositor;
 use wayland_client::protocol::wl_surface::WlSurface;
 use wayland_client::{Connection, EventQueue};
+use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1;
+use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_v1::WpFractionalScaleV1;
 use wayland_protocols::xdg::decoration::zv1::client::zxdg_decoration_manager_v1::ZxdgDecorationManagerV1;
 use wayland_protocols::xdg::decoration::zv1::client::zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1;
 use wayland_protocols::xdg::shell::client::xdg_surface::XdgSurface;
@@ -66,6 +68,8 @@ pub struct Client {
     cursor: Option<(WlSurface, WlBuffer)>,
     pub(crate) decoration_manager: Option<ZxdgDecorationManagerV1>,
     pub(crate) decorations: Vec<(ToplevelId, ZxdgToplevelDecorationV1)>,
+    pub(crate) fractional_scale_manager: Option<WpFractionalScaleManagerV1>,
+    pub(crate) scale_watchers: Vec<(ToplevelId, WpFractionalScaleV1)>,
 }
 
 impl Client {
@@ -95,6 +99,7 @@ impl Client {
             .bind(&handle, 1..=9, ())
             .map_err(bind_error("wl_seat"))?;
         let decoration_manager = list.bind(&handle, 1..=1, ()).ok();
+        let fractional_scale_manager = list.bind(&handle, 1..=1, ()).ok();
         let globals = list
             .contents()
             .clone_list()
@@ -119,6 +124,8 @@ impl Client {
             cursor: None,
             decoration_manager,
             decorations: Vec::new(),
+            fractional_scale_manager,
+            scale_watchers: Vec::new(),
         })
     }
 
@@ -329,6 +336,7 @@ impl Client {
 
     pub fn destroy_toplevel(&mut self, toplevel: ToplevelId) -> Result<(), ClientError> {
         self.release_decoration(toplevel);
+        self.release_preferred_scale(toplevel);
         let target = self
             .toplevels
             .get_mut(toplevel.0)
@@ -446,6 +454,10 @@ impl Client {
 
     pub(crate) fn toplevel_role(&self, toplevel: ToplevelId) -> Result<&XdgToplevel, ClientError> {
         Ok(&self.toplevel(toplevel)?.role)
+    }
+
+    pub(crate) fn toplevel_surface(&self, toplevel: ToplevelId) -> Result<&WlSurface, ClientError> {
+        Ok(&self.toplevel(toplevel)?.surface)
     }
 
     fn present(

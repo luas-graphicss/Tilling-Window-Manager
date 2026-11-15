@@ -1,5 +1,5 @@
 use smithay::backend::renderer::damage::{Error as DamageError, OutputDamageTracker};
-use smithay::backend::renderer::{Color32F, ImportAll, Renderer};
+use smithay::backend::renderer::{Color32F, ImportAll, ImportMem, Renderer};
 use smithay::output::Output;
 use smithay::utils::{Physical, Rectangle, Scale};
 
@@ -8,47 +8,37 @@ use super::cursor::cursor_elements;
 use super::elements::{SceneElement, content_elements, popup_elements};
 use crate::runtime::Compositor;
 
-const BACKGROUND: Color32F = Color32F::new(0.07, 0.08, 0.10, 1.0);
+pub(crate) const BACKGROUND: Color32F = Color32F::new(0.07, 0.08, 0.10, 1.0);
 
 pub(crate) type Damage = Vec<Rectangle<i32, Physical>>;
 
 #[derive(Debug)]
-pub(crate) struct Painter {
+pub(crate) struct SceneView {
     output: Output,
-    damage: OutputDamageTracker,
     borders: BorderCache,
 }
 
-impl Painter {
+#[derive(Debug)]
+pub(crate) struct Painter {
+    view: SceneView,
+    damage: OutputDamageTracker,
+}
+
+impl SceneView {
     pub(crate) fn new(output: &Output) -> Self {
         Self {
             output: output.clone(),
-            damage: OutputDamageTracker::from_output(output),
             borders: BorderCache::default(),
         }
     }
 
-    pub(crate) fn paint<R>(
+    pub(crate) fn elements<R>(
         &mut self,
         compositor: &Compositor,
         renderer: &mut R,
-        framebuffer: &mut R::Framebuffer<'_>,
-        buffer_age: usize,
-    ) -> Result<Option<Damage>, DamageError<R::Error>>
+    ) -> Vec<SceneElement<R>>
     where
-        R: Renderer + ImportAll,
-        R::TextureId: Clone + 'static,
-    {
-        let elements = self.elements(compositor, renderer);
-        let painted =
-            self.damage
-                .render_output(renderer, framebuffer, buffer_age, &elements, BACKGROUND)?;
-        Ok(painted.damage.cloned())
-    }
-
-    fn elements<R>(&mut self, compositor: &Compositor, renderer: &mut R) -> Vec<SceneElement<R>>
-    where
-        R: Renderer + ImportAll,
+        R: Renderer + ImportAll + ImportMem,
         R::TextureId: Clone + 'static,
     {
         let scale = Scale::from(self.output.current_scale().fractional_scale());
@@ -73,5 +63,32 @@ impl Painter {
         }
         self.borders.forget_windows_outside(&compositor.scene);
         elements
+    }
+}
+
+impl Painter {
+    pub(crate) fn new(output: &Output) -> Self {
+        Self {
+            view: SceneView::new(output),
+            damage: OutputDamageTracker::from_output(output),
+        }
+    }
+
+    pub(crate) fn paint<R>(
+        &mut self,
+        compositor: &Compositor,
+        renderer: &mut R,
+        framebuffer: &mut R::Framebuffer<'_>,
+        buffer_age: usize,
+    ) -> Result<Option<Damage>, DamageError<R::Error>>
+    where
+        R: Renderer + ImportAll + ImportMem,
+        R::TextureId: Clone + 'static,
+    {
+        let elements = self.view.elements(compositor, renderer);
+        let painted =
+            self.damage
+                .render_output(renderer, framebuffer, buffer_age, &elements, BACKGROUND)?;
+        Ok(painted.damage.cloned())
     }
 }

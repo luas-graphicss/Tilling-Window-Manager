@@ -1,6 +1,8 @@
 use std::error::Error;
 use std::path::PathBuf;
 
+#[cfg(feature = "drm")]
+use smithay::backend::drm::CreateDrmNodeError;
 use smithay::reexports::calloop;
 use smithay::reexports::wayland_server::BindError;
 use smithay::reexports::wayland_server::backend::InitError;
@@ -36,6 +38,12 @@ pub enum CompositorError {
     NoWorkspaces,
     #[error("virtual output {width}x{height} is not a usable size")]
     OutputSize { width: u32, height: u32 },
+    #[error("output {0} is already connected")]
+    OutputInUse(String),
+    #[error("output {0} is not connected")]
+    UnknownOutput(String),
+    #[error("the {0} backend does not take virtual outputs")]
+    FixedOutputs(&'static str),
     #[error("this build does not include the {0} backend")]
     BackendUnavailable(&'static str),
     #[error("the {0} backend needs the main thread and cannot run in a session")]
@@ -43,6 +51,28 @@ pub enum CompositorError {
     #[cfg(feature = "nested")]
     #[error("open the host window: {0}")]
     HostWindow(String),
+    #[cfg(feature = "drm")]
+    #[error("open the seat session: {0}")]
+    Seat(String),
+    #[cfg(feature = "drm")]
+    #[error("open the input devices of seat {0}")]
+    InputSeat(String),
+    #[cfg(feature = "drm")]
+    #[error("enumerate graphics devices")]
+    Gpus(#[source] std::io::Error),
+    #[cfg(feature = "drm")]
+    #[error("identify graphics device {}", .path.display())]
+    GpuNode {
+        path: PathBuf,
+        #[source]
+        source: CreateDrmNodeError,
+    },
+    #[cfg(feature = "drm")]
+    #[error("no usable graphics device on seat {0}")]
+    NoGpu(String),
+    #[cfg(feature = "drm")]
+    #[error("start the renderer: {0}")]
+    Renderer(String),
     #[error(transparent)]
     Instance(#[from] InstanceError),
     #[error("open the control socket")]

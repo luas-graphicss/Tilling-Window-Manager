@@ -1,9 +1,9 @@
 mod clients;
 pub(crate) mod instance;
-mod outputs;
 pub(crate) mod session;
 mod signals;
 mod state;
+mod usage;
 
 use std::time::Duration;
 
@@ -19,8 +19,8 @@ use instance::Instance;
 use state::Settings;
 
 pub(crate) use clients::ClientState;
-pub(crate) use outputs::OutputRegistry;
 pub(crate) use state::Compositor;
+pub(crate) use usage::ProcessUsage;
 
 pub(crate) struct Runtime {
     pub(crate) display: Display<Compositor>,
@@ -52,6 +52,7 @@ impl Runtime {
             config: options.config,
             config_source: options.config_source,
             transaction_timeout: options.transaction_timeout,
+            output_confirmation: options.output_confirmation,
             launcher: Launcher::new(&options.runtime_dir, instance.wayland_socket()),
         };
         let mut compositor = Compositor::new(
@@ -88,8 +89,9 @@ impl Runtime {
     fn after_dispatch(&mut self) {
         self.compositor.settle();
         self.compositor.popups.cleanup();
+        self.backend.follow(&mut self.compositor);
         if self.compositor.take_frame_demand() {
-            self.backend.schedule_frame(&self.compositor.loop_handle);
+            self.backend.schedule_frame(&mut self.compositor);
         }
         if let Err(error) = self.display.flush_clients() {
             tracing::warn!(%error, "flush wayland clients");

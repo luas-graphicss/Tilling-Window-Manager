@@ -44,7 +44,7 @@ impl Compositor {
             Call::GetWorkspaces => Ok(Reply::Workspaces(views::workspaces(&self.desktop))),
             Call::GetWindows => Ok(Reply::Windows(views::windows(&self.desktop))),
             Call::GetConfig => Ok(Reply::Config(self.config_info())),
-            Call::GetDiagnostics => Ok(Reply::Diagnostics(views::diagnostics(&self.desktop))),
+            Call::GetDiagnostics => Ok(Reply::Diagnostics(self.diagnostics())),
             Call::FocusWindow { window } => {
                 let window = resources::window(&self.desktop, window)?;
                 self.accept(Command::FocusWindow { window })
@@ -64,6 +64,9 @@ impl Compositor {
                 let workspace = resources::workspace(&self.desktop, workspace)?;
                 self.accept(Command::SwitchWorkspace { workspace })
             }
+            Call::ConfigureOutput { output, change } => self.configure_output(output, change),
+            Call::ConfirmOutputChange => self.confirm_output(),
+            Call::RevertOutputChange => self.revert_output(),
             Call::ReloadConfig => {
                 self.reload()
                     .map_err(|error| Refusal::invalid_because(&error))?;
@@ -83,7 +86,7 @@ impl Compositor {
         Ok(self.accepted())
     }
 
-    fn accepted(&self) -> Reply {
+    pub(super) fn accepted(&self) -> Reply {
         Reply::Accepted {
             revision: self.desktop.revision(),
         }

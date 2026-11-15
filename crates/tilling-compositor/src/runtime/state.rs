@@ -9,17 +9,23 @@ use smithay::reexports::calloop::{LoopHandle, LoopSignal};
 use smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::WmCapabilities;
 use smithay::reexports::wayland_server::DisplayHandle;
 use smithay::wayland::compositor::CompositorState;
+use smithay::wayland::fractional_scale::FractionalScaleManagerState;
+use smithay::wayland::output::OutputManagerState;
 use smithay::wayland::shell::xdg::XdgShellState;
 use smithay::wayland::shell::xdg::decoration::XdgDecorationState;
 use smithay::wayland::shm::ShmState;
+use smithay::wayland::viewporter::ViewporterState;
 use tilling_config::{ConfigSource, DEFAULT_MODE, ValidatedConfig};
 use tilling_core::DesktopState;
 
-use super::{OutputRegistry, Runtime};
+use super::Runtime;
 use crate::control::ControlPeers;
 use crate::desktop::initial_desktop;
 use crate::error::CompositorError;
 use crate::input::{BindingTable, InputSerials, Launcher};
+use crate::output::{OutputRegistry, OutputTrial};
+#[cfg(feature = "drm")]
+use crate::protocol::DmabufImports;
 use crate::render::FrameStats;
 use crate::scene::Scene;
 use crate::shell::WindowRegistry;
@@ -32,6 +38,7 @@ pub(crate) struct Settings {
     pub(crate) config: ValidatedConfig,
     pub(crate) config_source: ConfigSource,
     pub(crate) transaction_timeout: Duration,
+    pub(crate) output_confirmation: Duration,
     pub(crate) launcher: Launcher,
 }
 
@@ -54,10 +61,17 @@ pub(crate) struct Compositor {
     pub(crate) suppressed_keys: HashSet<Keycode>,
     pub(crate) input_serials: InputSerials,
     pub(crate) cursor: CursorImageStatus,
+    pub(crate) draws_named_cursor: bool,
+    terminal_switch: Option<i32>,
+    #[cfg(feature = "drm")]
+    pub(crate) dmabuf: DmabufImports,
     pub(crate) launcher: Launcher,
     pub(crate) desktop: DesktopState,
     pub(crate) windows: WindowRegistry,
     pub(crate) outputs: OutputRegistry,
+    pub(crate) output_confirmation: Duration,
+    pub(crate) output_trial: Option<OutputTrial>,
+    pub(crate) input_devices: usize,
     pub(crate) scene: Scene,
     pub(crate) transactions: Coordinator,
     pub(crate) control: ControlPeers,
@@ -76,6 +90,7 @@ impl Compositor {
             config,
             config_source,
             transaction_timeout,
+            output_confirmation,
             launcher,
         } = settings;
         let compositor_state = CompositorState::new::<Self>(&display_handle);
@@ -85,6 +100,9 @@ impl Compositor {
             [WmCapabilities::Fullscreen],
         );
         XdgDecorationState::new::<Self>(&display_handle);
+        ViewporterState::new::<Self>(&display_handle);
+        FractionalScaleManagerState::new::<Self>(&display_handle);
+        OutputManagerState::new_with_xdg_output::<Self>(&display_handle);
         let mut seat_state = SeatState::new();
         let mut seat = seat_state.new_wl_seat(&display_handle, SEAT_NAME);
         let keyboard = &config.input().keyboard;
@@ -120,10 +138,17 @@ impl Compositor {
             suppressed_keys: HashSet::new(),
             input_serials: InputSerials::default(),
             cursor: CursorImageStatus::default_named(),
+            draws_named_cursor: false,
+            terminal_switch: None,
+            #[cfg(feature = "drm")]
+            dmabuf: DmabufImports::default(),
             launcher,
             desktop,
             windows: WindowRegistry::default(),
             outputs: OutputRegistry::default(),
+            output_confirmation,
+            output_trial: None,
+            input_devices: 0,
             scene: Scene::default(),
             transactions: Coordinator::new(transaction_timeout),
             control: ControlPeers::default(),
@@ -151,5 +176,13 @@ impl Compositor {
 
     pub(crate) fn take_frame_demand(&mut self) -> bool {
         std::mem::take(&mut self.frame_demanded)
+    }
+
+    pub(crate) fn request_terminal_switch(&mut self, terminal: i32) {
+        self.terminal_switch = Some(terminal);
+    }
+
+    pub(crate) fn take_terminal_switch(&mut self) -> Option<i32> {
+        self.terminal_switch.take()
     }
 }

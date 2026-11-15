@@ -1,8 +1,8 @@
 use tilling_core::geometry::Scale;
 use tilling_core::layout::Gaps;
-use tilling_core::{Command, DesktopState, Effect, TransitionError};
+use tilling_core::{Command, DesktopState, Effect, TransitionError, WindowMode};
 
-use crate::scenario::{add_output, apply, area, desktop_with_output, open, placement_of};
+use crate::scenario::{add_output, apply, area, desktop_with_output, open, open_in, placement_of};
 
 #[test]
 fn losing_every_output_parks_workspaces_without_dropping_windows() {
@@ -119,4 +119,53 @@ fn desktop_without_outputs_has_no_visible_focus() {
     let workspace = state.workspace(state.active_workspace()).unwrap();
     assert_eq!(workspace.focused_window(), Some(window));
     assert_eq!(state.focused_window(), None);
+}
+
+#[test]
+fn reconnected_output_gets_back_the_workspace_it_was_showing() {
+    let (mut state, primary) = desktop_with_output();
+    let secondary = add_output(&mut state, "secondary", area(1920, 0, 1920, 1080));
+    let shown = state.output(secondary).unwrap().workspace();
+    let window = open_in(&mut state, "browser", Some(shown), WindowMode::Tiled);
+
+    apply(&mut state, Command::RemoveOutput { output: secondary });
+    let while_away = state.workspace(shown).unwrap().output();
+    let returned = add_output(&mut state, "secondary", area(1920, 0, 1920, 1080));
+
+    assert_eq!(while_away, Some(primary));
+    assert_eq!(state.output(returned).unwrap().workspace(), shown);
+    assert_eq!(state.workspace(shown).unwrap().output(), Some(returned));
+    assert_eq!(state.workspace(shown).unwrap().windows(), [window]);
+}
+
+#[test]
+fn repeated_hotplug_keeps_the_same_workspaces_and_windows() {
+    let (mut state, _) = desktop_with_output();
+    let mut secondary = add_output(&mut state, "secondary", area(1920, 0, 1920, 1080));
+    let shown = state.output(secondary).unwrap().workspace();
+    let window = open_in(&mut state, "browser", Some(shown), WindowMode::Tiled);
+    let workspaces = state.workspaces().count();
+
+    for _ in 0..50 {
+        apply(&mut state, Command::RemoveOutput { output: secondary });
+        secondary = add_output(&mut state, "secondary", area(1920, 0, 1920, 1080));
+    }
+
+    assert_eq!(state.workspaces().count(), workspaces);
+    assert_eq!(state.output(secondary).unwrap().workspace(), shown);
+    assert_eq!(state.workspace(shown).unwrap().windows(), [window]);
+}
+
+#[test]
+fn workspace_shown_elsewhere_is_not_taken_by_the_reconnected_output() {
+    let (mut state, primary) = desktop_with_output();
+    let secondary = add_output(&mut state, "secondary", area(1920, 0, 1920, 1080));
+    let moved = state.output(secondary).unwrap().workspace();
+    apply(&mut state, Command::RemoveOutput { output: secondary });
+    apply(&mut state, Command::SwitchWorkspace { workspace: moved });
+
+    let returned = add_output(&mut state, "secondary", area(1920, 0, 1920, 1080));
+
+    assert_eq!(state.output(primary).unwrap().workspace(), moved);
+    assert_ne!(state.output(returned).unwrap().workspace(), moved);
 }

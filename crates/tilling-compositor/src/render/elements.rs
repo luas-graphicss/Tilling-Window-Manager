@@ -1,10 +1,12 @@
+#[cfg(feature = "drm")]
+use smithay::backend::renderer::element::memory::MemoryRenderBufferRenderElement;
 use smithay::backend::renderer::element::solid::SolidColorRenderElement;
 use smithay::backend::renderer::element::surface::{
     WaylandSurfaceRenderElement, render_elements_from_surface_tree,
 };
 use smithay::backend::renderer::element::utils::CropRenderElement;
 use smithay::backend::renderer::element::{Kind, render_elements};
-use smithay::backend::renderer::{ImportAll, Renderer};
+use smithay::backend::renderer::{ImportAll, ImportMem, Renderer};
 use smithay::desktop::PopupManager;
 use smithay::utils::{Logical, Point, Scale};
 
@@ -13,10 +15,12 @@ use crate::scene::SceneWindow;
 use crate::shell::{ManagedWindow, surface_origin};
 
 render_elements! {
-    pub(crate) SceneElement<R> where R: ImportAll;
+    pub(crate) SceneElement<R> where R: ImportAll + ImportMem;
     Surface = WaylandSurfaceRenderElement<R>,
     Clipped = CropRenderElement<WaylandSurfaceRenderElement<R>>,
     Border = SolidColorRenderElement,
+    #[cfg(feature = "drm")]
+    Sprite = MemoryRenderBufferRenderElement<R>,
 }
 
 pub(super) fn content_elements<R>(
@@ -27,7 +31,7 @@ pub(super) fn content_elements<R>(
     scale: Scale<f64>,
 ) -> Vec<SceneElement<R>>
 where
-    R: Renderer + ImportAll,
+    R: Renderer + ImportAll + ImportMem,
     R::TextureId: Clone + 'static,
 {
     let location = surface_origin(placed, &managed.window) - output_origin;
@@ -57,7 +61,7 @@ pub(super) fn popup_elements<R>(
     scale: Scale<f64>,
 ) -> Vec<SceneElement<R>>
 where
-    R: Renderer + ImportAll,
+    R: Renderer + ImportAll + ImportMem,
     R::TextureId: Clone + 'static,
 {
     let window_origin = rectangle(placed.content).loc - output_origin;

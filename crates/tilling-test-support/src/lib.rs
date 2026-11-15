@@ -3,6 +3,7 @@ mod client;
 mod decoration;
 mod dispatch;
 mod error;
+mod fractional_scale;
 mod input_region;
 mod popup;
 mod state;

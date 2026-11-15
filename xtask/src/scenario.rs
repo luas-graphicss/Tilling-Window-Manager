@@ -1,7 +1,9 @@
+mod checks;
+mod steps;
+
 use clap::ValueEnum;
 
-const COMPOSITOR: &str = "tilling-compositor";
-const HEADLESS: Target = Target::Integration("headless");
+pub use checks::Check;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum Scenario {
@@ -9,6 +11,11 @@ pub enum Scenario {
     NestedInput,
     ConfigureTimeout,
     IpcBackpressure,
+    OutputHotplug,
+    OutputRollback,
+    FractionalScale,
+    SeatReactivation,
+    RendererFallback,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,64 +38,11 @@ impl Scenario {
             Self::NestedInput => "nested-input",
             Self::ConfigureTimeout => "configure-timeout",
             Self::IpcBackpressure => "ipc-backpressure",
-        }
-    }
-
-    pub const fn steps(self) -> &'static [Step] {
-        match self {
-            Self::NestedLifecycle => &[
-                Step {
-                    package: COMPOSITOR,
-                    target: HEADLESS,
-                    filters: &[
-                        "globals::",
-                        "lifecycle::",
-                        "subsurfaces::",
-                        "popups::",
-                        "tiling::",
-                        "backends::",
-                    ],
-                },
-                Step {
-                    package: "tilling",
-                    target: Target::Integration("cli"),
-                    filters: &[],
-                },
-            ],
-            Self::NestedInput => &[Step {
-                package: COMPOSITOR,
-                target: HEADLESS,
-                filters: &["keyboard::", "pointer::", "frames::"],
-            }],
-            Self::ConfigureTimeout => &[
-                Step {
-                    package: COMPOSITOR,
-                    target: Target::Library,
-                    filters: &["transaction::"],
-                },
-                Step {
-                    package: COMPOSITOR,
-                    target: HEADLESS,
-                    filters: &["transactions::"],
-                },
-            ],
-            Self::IpcBackpressure => &[
-                Step {
-                    package: "tilling-ipc",
-                    target: Target::Integration("transport"),
-                    filters: &["backpressure::"],
-                },
-                Step {
-                    package: COMPOSITOR,
-                    target: HEADLESS,
-                    filters: &["control::"],
-                },
-                Step {
-                    package: "tillingctl",
-                    target: Target::Integration("cli"),
-                    filters: &[],
-                },
-            ],
+            Self::OutputHotplug => "output-hotplug",
+            Self::OutputRollback => "output-rollback",
+            Self::FractionalScale => "fractional-scale",
+            Self::SeatReactivation => "seat-reactivation",
+            Self::RendererFallback => "renderer-fallback",
         }
     }
 
@@ -103,7 +57,13 @@ impl Scenario {
                 "host keyboard, pointer and scroll events reach the seat",
                 "the host cursor follows the cursor requested by the client",
             ],
-            Self::ConfigureTimeout | Self::IpcBackpressure => &[],
+            Self::ConfigureTimeout
+            | Self::IpcBackpressure
+            | Self::OutputHotplug
+            | Self::OutputRollback
+            | Self::FractionalScale
+            | Self::SeatReactivation
+            | Self::RendererFallback => &[],
         }
     }
 }

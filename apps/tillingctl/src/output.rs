@@ -1,10 +1,11 @@
 use tilling_ipc::endpoint::InstanceName;
 use tilling_ipc::{
-    Event, EventFrame, Outcome, OutputInfo, Reply, ResourceId, Snapshot, WindowInfo, WindowMode,
-    WorkspaceInfo,
+    DiagnosticsInfo, Event, EventFrame, Outcome, OutputInfo, Reply, ResourceId, Snapshot,
+    WindowInfo, WindowMode, WorkspaceInfo,
 };
 
 const ABSENT: &str = "-";
+const MILLISECONDS_PER_SECOND: u64 = 1_000;
 const REPLACEMENT: char = '\u{fffd}';
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,13 +67,34 @@ fn describe_reply(reply: &Reply) -> String {
                 .as_deref()
                 .map_or_else(|| "built-in defaults".to_owned(), printable)
         ),
-        Reply::Diagnostics(diagnostics) => format!(
-            "revision {}: {} outputs, {} workspaces, {} windows",
-            diagnostics.revision, diagnostics.outputs, diagnostics.workspaces, diagnostics.windows
-        ),
+        Reply::Diagnostics(diagnostics) => describe_diagnostics(diagnostics),
         Reply::Accepted { revision } => format!("accepted at revision {revision}"),
+        Reply::OutputChangePending {
+            revision,
+            confirm_within_ms,
+        } => format!(
+            "changed at revision {revision}, reverted in {} s unless `tillingctl output confirm` runs",
+            confirm_within_ms.div_ceil(MILLISECONDS_PER_SECOND)
+        ),
         Reply::Subscribed(snapshot) => describe_snapshot(snapshot),
     }
+}
+
+fn describe_diagnostics(diagnostics: &DiagnosticsInfo) -> String {
+    let desktop = format!(
+        "revision {}: {} outputs, {} workspaces, {} windows",
+        diagnostics.revision, diagnostics.outputs, diagnostics.workspaces, diagnostics.windows
+    );
+    let presentation = format!(
+        "frames: {} presented, {} with damage",
+        diagnostics.frames_presented, diagnostics.frames_damaged
+    );
+    let input = format!("input devices: {}", diagnostics.input_devices);
+    let process = format!(
+        "process: {} KiB resident, {} descriptors, {} ms of processor time",
+        diagnostics.resident_kib, diagnostics.open_descriptors, diagnostics.cpu_time_ms
+    );
+    lines([desktop, presentation, input, process].into_iter())
 }
 
 fn describe_snapshot(snapshot: &Snapshot) -> String {
@@ -218,7 +240,7 @@ mod tests {
             }),
         };
 
-        assert_eq!(text(&reply), "tilling 0.1.0 (protocol 1.0)");
+        assert_eq!(text(&reply), "tilling 0.1.0 (protocol 1.1)");
     }
 
     #[test]
@@ -244,6 +266,47 @@ mod tests {
 
         assert!(rendered.ends_with("title evil\u{fffd}[2J\u{fffd}title"));
         assert!(!rendered.contains(['\u{1b}', '\n']));
+    }
+
+    #[test]
+    fn pending_output_change_says_how_long_it_waits_for_confirmation() {
+        let reply = Outcome::Success {
+            result: Reply::OutputChangePending {
+                revision: 12,
+                confirm_within_ms: 14_200,
+            },
+        };
+
+        assert_eq!(
+            text(&reply),
+            "changed at revision 12, reverted in 15 s unless `tillingctl output confirm` runs"
+        );
+    }
+
+    #[test]
+    fn diagnostics_report_presentation_input_and_process_usage() {
+        let reply = Outcome::Success {
+            result: Reply::Diagnostics(DiagnosticsInfo {
+                revision: 4,
+                outputs: 2,
+                workspaces: 9,
+                windows: 3,
+                input_devices: 2,
+                frames_presented: 1200,
+                frames_damaged: 310,
+                resident_kib: 48_212,
+                open_descriptors: 37,
+                cpu_time_ms: 950,
+            }),
+        };
+
+        assert_eq!(
+            text(&reply),
+            "revision 4: 2 outputs, 9 workspaces, 3 windows\n\
+             frames: 1200 presented, 310 with damage\n\
+             input devices: 2\n\
+             process: 48212 KiB resident, 37 descriptors, 950 ms of processor time"
+        );
     }
 
     #[test]
