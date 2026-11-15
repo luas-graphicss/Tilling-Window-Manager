@@ -1,21 +1,23 @@
 use wayland_client::globals::GlobalListContents;
 use wayland_client::protocol::wl_buffer::{self, WlBuffer};
 use wayland_client::protocol::wl_compositor::WlCompositor;
+use wayland_client::protocol::wl_keyboard::{self, KeyState, WlKeyboard};
+use wayland_client::protocol::wl_pointer::{self, ButtonState, WlPointer};
 use wayland_client::protocol::wl_registry::{self, WlRegistry};
+use wayland_client::protocol::wl_seat::{self, Capability, WlSeat};
 use wayland_client::protocol::wl_shm::WlShm;
 use wayland_client::protocol::wl_shm_pool::WlShmPool;
-use wayland_client::protocol::wl_surface::WlSurface;
-use wayland_client::{Connection, Dispatch, QueueHandle, delegate_noop};
+use wayland_client::protocol::wl_surface::{self, WlSurface};
+use wayland_client::{Connection, Dispatch, Proxy, QueueHandle, WEnum, delegate_noop};
 use wayland_protocols::xdg::shell::client::xdg_surface::{self, XdgSurface};
 use wayland_protocols::xdg::shell::client::xdg_toplevel::{self, XdgToplevel};
 use wayland_protocols::xdg::shell::client::xdg_wm_base::{self, XdgWmBase};
 
-use crate::state::{ClientState, ProposedState};
+use crate::state::{ButtonEvent, ClientState, KeyEvent, ProposedState};
 
 delegate_noop!(ClientState: WlCompositor);
 delegate_noop!(ClientState: WlShmPool);
 delegate_noop!(ClientState: ignore WlShm);
-delegate_noop!(ClientState: ignore WlSurface);
 
 impl Dispatch<WlRegistry, GlobalListContents> for ClientState {
     fn event(
@@ -23,6 +25,18 @@ impl Dispatch<WlRegistry, GlobalListContents> for ClientState {
         _registry: &WlRegistry,
         _event: wl_registry::Event,
         _contents: &GlobalListContents,
+        _connection: &Connection,
+        _queue: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<WlSurface, usize> for ClientState {
+    fn event(
+        _state: &mut Self,
+        _surface: &WlSurface,
+        _event: wl_surface::Event,
+        _toplevel: &usize,
         _connection: &Connection,
         _queue: &QueueHandle<Self>,
     ) {
@@ -98,4 +112,102 @@ impl Dispatch<XdgToplevel, usize> for ClientState {
             _ => {}
         }
     }
+}
+
+impl Dispatch<WlSeat, ()> for ClientState {
+    fn event(
+        state: &mut Self,
+        seat: &WlSeat,
+        event: wl_seat::Event,
+        (): &(),
+        _connection: &Connection,
+        queue: &QueueHandle<Self>,
+    ) {
+        let wl_seat::Event::Capabilities {
+            capabilities: WEnum::Value(capabilities),
+        } = event
+        else {
+            return;
+        };
+        if capabilities.contains(Capability::Keyboard) && !state.seat.has_keyboard {
+            seat.get_keyboard(queue, ());
+            state.seat.has_keyboard = true;
+        }
+        if capabilities.contains(Capability::Pointer) && !state.seat.has_pointer {
+            seat.get_pointer(queue, ());
+            state.seat.has_pointer = true;
+        }
+    }
+}
+
+impl Dispatch<WlKeyboard, ()> for ClientState {
+    fn event(
+        state: &mut Self,
+        _keyboard: &WlKeyboard,
+        event: wl_keyboard::Event,
+        (): &(),
+        _connection: &Connection,
+        _queue: &QueueHandle<Self>,
+    ) {
+        match event {
+            wl_keyboard::Event::Enter { surface, .. } => {
+                state.seat.keyboard_focus = toplevel_of(&surface);
+            }
+            wl_keyboard::Event::Leave { .. } => state.seat.keyboard_focus = None,
+            wl_keyboard::Event::Key {
+                key,
+                state: WEnum::Value(key_state),
+                ..
+            } => state.seat.keys.push(KeyEvent {
+                code: key,
+                pressed: key_state == KeyState::Pressed,
+            }),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<WlPointer, ()> for ClientState {
+    fn event(
+        state: &mut Self,
+        _pointer: &WlPointer,
+        event: wl_pointer::Event,
+        (): &(),
+        _connection: &Connection,
+        _queue: &QueueHandle<Self>,
+    ) {
+        match event {
+            wl_pointer::Event::Enter {
+                surface,
+                surface_x,
+                surface_y,
+                ..
+            } => {
+                state.seat.pointer_focus = toplevel_of(&surface);
+                state.seat.pointer_position = Some((surface_x, surface_y));
+            }
+            wl_pointer::Event::Leave { .. } => {
+                state.seat.pointer_focus = None;
+                state.seat.pointer_position = None;
+            }
+            wl_pointer::Event::Motion {
+                surface_x,
+                surface_y,
+                ..
+            } => state.seat.pointer_position = Some((surface_x, surface_y)),
+            wl_pointer::Event::Button {
+                button,
+                state: WEnum::Value(button_state),
+                ..
+            } => state.seat.buttons.push(ButtonEvent {
+                code: button,
+                pressed: button_state == ButtonState::Pressed,
+            }),
+            _ => {}
+        }
+    }
+}
+
+fn toplevel_of(surface: &WlSurface) -> Option<usize> {
+    surface.data::<usize>().copied()
 }

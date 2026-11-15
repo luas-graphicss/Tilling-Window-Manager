@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 use wayland_client::globals::registry_queue_init;
 use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_compositor::WlCompositor;
+use wayland_client::protocol::wl_seat::WlSeat;
 use wayland_client::protocol::wl_shm::WlShm;
 use wayland_client::protocol::wl_surface::WlSurface;
 use wayland_client::{Connection, EventQueue};
@@ -15,7 +16,9 @@ use wayland_protocols::xdg::shell::client::xdg_wm_base::XdgWmBase;
 
 use crate::buffer;
 use crate::error::ClientError;
-use crate::state::{AdvertisedGlobal, ClientState, ToplevelConfigure, ToplevelRecord};
+use crate::state::{
+    AdvertisedGlobal, ButtonEvent, ClientState, KeyEvent, ToplevelConfigure, ToplevelRecord,
+};
 
 const DEFAULT_WIDTH: u32 = 640;
 const DEFAULT_HEIGHT: u32 = 480;
@@ -64,6 +67,8 @@ impl Client {
         let wm_base = list
             .bind(&handle, 1..=6, ())
             .map_err(bind_error("xdg_wm_base"))?;
+        list.bind::<WlSeat, _, _>(&handle, 1..=9, ())
+            .map_err(bind_error("wl_seat"))?;
         let globals = list
             .contents()
             .clone_list()
@@ -85,6 +90,31 @@ impl Client {
     }
 
     #[must_use]
+    pub fn keyboard_focus(&self) -> Option<ToplevelId> {
+        self.state.seat.keyboard_focus.map(ToplevelId)
+    }
+
+    #[must_use]
+    pub fn key_events(&self) -> &[KeyEvent] {
+        &self.state.seat.keys
+    }
+
+    #[must_use]
+    pub fn pointer_focus(&self) -> Option<ToplevelId> {
+        self.state.seat.pointer_focus.map(ToplevelId)
+    }
+
+    #[must_use]
+    pub fn pointer_position(&self) -> Option<(f64, f64)> {
+        self.state.seat.pointer_position
+    }
+
+    #[must_use]
+    pub fn button_events(&self) -> &[ButtonEvent] {
+        &self.state.seat.buttons
+    }
+
+    #[must_use]
     pub fn globals(&self) -> &[AdvertisedGlobal] {
         &self.globals
     }
@@ -97,7 +127,7 @@ impl Client {
     pub fn create_toplevel(&mut self, app_id: &str, title: &str) -> ToplevelId {
         let handle = self.queue.handle();
         let index = self.toplevels.len();
-        let surface = self.compositor.create_surface(&handle, ());
+        let surface = self.compositor.create_surface(&handle, index);
         let xdg_surface = self.wm_base.get_xdg_surface(&surface, &handle, index);
         let role = xdg_surface.get_toplevel(&handle, index);
         role.set_app_id(app_id.to_owned());

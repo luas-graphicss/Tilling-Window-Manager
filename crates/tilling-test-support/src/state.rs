@@ -18,6 +18,18 @@ pub struct ToplevelConfigure {
     pub tiled: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyEvent {
+    pub code: u32,
+    pub pressed: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ButtonEvent {
+    pub code: u32,
+    pub pressed: bool,
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ProposedState {
     width: u32,
@@ -36,8 +48,20 @@ pub(crate) struct ToplevelRecord {
 }
 
 #[derive(Debug, Default)]
+pub(crate) struct SeatLog {
+    pub(crate) has_keyboard: bool,
+    pub(crate) has_pointer: bool,
+    pub(crate) keyboard_focus: Option<usize>,
+    pub(crate) keys: Vec<KeyEvent>,
+    pub(crate) pointer_focus: Option<usize>,
+    pub(crate) pointer_position: Option<(f64, f64)>,
+    pub(crate) buttons: Vec<ButtonEvent>,
+}
+
+#[derive(Debug, Default)]
 pub(crate) struct ClientState {
     pub(crate) toplevels: Vec<ToplevelRecord>,
+    pub(crate) seat: SeatLog,
     pub(crate) released_buffers: usize,
 }
 
