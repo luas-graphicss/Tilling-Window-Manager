@@ -8,5 +8,6 @@ mod keys;
 mod lifecycle;
 mod pointer;
 mod popups;
+mod subsurfaces;
 mod tiling;
 mod transactions;

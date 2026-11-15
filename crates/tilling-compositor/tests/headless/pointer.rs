@@ -1,8 +1,17 @@
 use tilling_core::geometry::LogicalRect;
-use tilling_test_support::{ButtonEvent, Client, ClientError, ResizeEdge, ScrollEvent, ToplevelId};
+use tilling_test_support::{
+    ButtonEvent, Client, ClientError, InputRegion, ResizeEdge, ScrollEvent, ToplevelId,
+};
 
 use crate::harness::Harness;
 use crate::keys;
+
+const CLICKABLE_CORNER: InputRegion = InputRegion {
+    x: 0,
+    y: 0,
+    width: 300,
+    height: 200,
+};
 
 fn floating_window(
     harness: &Harness,
@@ -69,6 +78,25 @@ fn gaps_and_borders_do_not_deliver_pointer_focus() {
 
     assert_eq!(inside, Some(window));
     assert_eq!(on_border, None);
+    assert_eq!(client.pointer_focus(), None);
+}
+
+#[test]
+fn pointer_outside_the_input_region_does_not_reach_the_window() {
+    let harness = Harness::start();
+    let mut client = harness.connect();
+    let window = client.create_toplevel("org.example.Terminal", "shell");
+    client.map(window).unwrap();
+    harness.published(1);
+    client.set_input_region(window, CLICKABLE_CORNER).unwrap();
+
+    harness.move_pointer(110.0, 60.0);
+    client.roundtrip().unwrap();
+    let inside = client.pointer_focus();
+    harness.move_pointer(600.0, 400.0);
+    client.roundtrip().unwrap();
+
+    assert_eq!(inside, Some(window));
     assert_eq!(client.pointer_focus(), None);
 }
 
