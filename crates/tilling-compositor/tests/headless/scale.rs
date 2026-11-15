@@ -14,7 +14,8 @@ fn configured(outputs: &str) -> Harness {
 }
 
 fn logical(x: i32, y: i32, width: u32, height: u32) -> LogicalRect {
-    LogicalRect::new(x, y, width, height).unwrap()
+    LogicalRect::new(x, y, width, height)
+        .unwrap_or_else(|error| panic!("invalid test area: {error}"))
 }
 
 #[test]
