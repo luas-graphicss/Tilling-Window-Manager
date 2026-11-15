@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "apps/tilling",
     "apps/tillingctl",
     "crates/tilling-compositor",
     "crates/tilling-config",
@@ -28,12 +29,14 @@ serde_json = "1.0.154"
 smithay = { version = "=0.7.0", default-features = false }
 tempfile = "3.27.0"
 thiserror = "2.0.21"
+tilling-compositor = { path = "crates/tilling-compositor" }
 tilling-config = { path = "crates/tilling-config" }
 tilling-core = { path = "crates/tilling-core" }
 tilling-ipc = { path = "crates/tilling-ipc" }
 tilling-test-support = { path = "crates/tilling-test-support" }
 toml = { version = "1.2.1", default-features = false, features = ["parse", "serde", "std"] }
 tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "std"] }
 wayland-client = "0.31.15"
 wayland-protocols = { version = "0.32.13", features = ["client", "unstable"] }
 

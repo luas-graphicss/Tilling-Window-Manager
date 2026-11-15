@@ -31,7 +31,12 @@ pub(crate) struct Runtime {
 pub fn run(options: Options) -> Result<(), CompositorError> {
     let mut event_loop = EventLoop::try_new().map_err(CompositorError::EventLoop)?;
     signals::watch(&event_loop.handle())?;
-    let (mut runtime, _instance) = Runtime::launch(&event_loop, options)?;
+    let (mut runtime, instance) = Runtime::launch(&event_loop, options)?;
+    tracing::info!(
+        wayland_socket = %instance.wayland_socket().display(),
+        control_socket = %instance.control_socket().display(),
+        "accepting clients"
+    );
     runtime.serve(&mut event_loop)
 }
 
