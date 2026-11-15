@@ -131,9 +131,31 @@ impl Harness {
     }
 
     pub(crate) fn click(&self, code: u32) -> SessionSnapshot {
-        for pressed in [true, false] {
-            self.inject(SyntheticInput::PointerButton { code, pressed });
-        }
+        self.press(code);
+        self.release(code)
+    }
+
+    pub(crate) fn press(&self, code: u32) -> SessionSnapshot {
+        self.inject(SyntheticInput::PointerButton {
+            code,
+            pressed: true,
+        });
+        self.snapshot()
+    }
+
+    pub(crate) fn release(&self, code: u32) -> SessionSnapshot {
+        self.inject(SyntheticInput::PointerButton {
+            code,
+            pressed: false,
+        });
+        self.snapshot()
+    }
+
+    pub(crate) fn scroll(&self, horizontal: f64, vertical: f64) -> SessionSnapshot {
+        self.inject(SyntheticInput::PointerScroll {
+            horizontal,
+            vertical,
+        });
         self.snapshot()
     }
 

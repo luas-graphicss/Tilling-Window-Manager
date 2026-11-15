@@ -1,4 +1,5 @@
 use smithay::desktop::Window;
+use smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::ResizeEdge;
 use smithay::reexports::wayland_server::protocol::wl_output::WlOutput;
 use smithay::reexports::wayland_server::protocol::wl_seat::WlSeat;
 use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
@@ -8,6 +9,7 @@ use smithay::wayland::shell::xdg::{
 };
 
 use crate::runtime::Compositor;
+use crate::shell::{Drag, Edges};
 use crate::transaction::ConfigureSerial;
 
 impl XdgShellHandler for Compositor {
@@ -26,6 +28,22 @@ impl XdgShellHandler for Compositor {
 
     fn new_popup(&mut self, surface: PopupSurface, positioner: PositionerState) {
         self.track_popup(surface, positioner);
+    }
+
+    fn move_request(&mut self, surface: ToplevelSurface, seat: WlSeat, serial: Serial) {
+        self.begin_drag(&surface, &seat, serial, Drag::Move);
+    }
+
+    fn resize_request(
+        &mut self,
+        surface: ToplevelSurface,
+        seat: WlSeat,
+        serial: Serial,
+        edges: ResizeEdge,
+    ) {
+        if let Some(edges) = dragged_edges(edges) {
+            self.begin_drag(&surface, &seat, serial, Drag::Resize(edges));
+        }
     }
 
     fn grab(&mut self, _surface: PopupSurface, _seat: WlSeat, _serial: Serial) {}
@@ -68,4 +86,24 @@ impl XdgShellHandler for Compositor {
     fn title_changed(&mut self, surface: ToplevelSurface) {
         self.refresh_metadata(surface.wl_surface());
     }
+}
+
+fn dragged_edges(edges: ResizeEdge) -> Option<Edges> {
+    let (left, right, top, bottom) = match edges {
+        ResizeEdge::Top => (false, false, true, false),
+        ResizeEdge::Bottom => (false, false, false, true),
+        ResizeEdge::Left => (true, false, false, false),
+        ResizeEdge::TopLeft => (true, false, true, false),
+        ResizeEdge::BottomLeft => (true, false, false, true),
+        ResizeEdge::Right => (false, true, false, false),
+        ResizeEdge::TopRight => (false, true, true, false),
+        ResizeEdge::BottomRight => (false, true, false, true),
+        _ => return None,
+    };
+    Some(Edges {
+        left,
+        right,
+        top,
+        bottom,
+    })
 }

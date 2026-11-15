@@ -1,7 +1,8 @@
-use smithay::backend::input::{ButtonState, KeyState};
+use smithay::backend::input::{AxisSource, ButtonState, KeyState};
 use smithay::input::keyboard::Keycode;
 use smithay::utils::Point;
 
+use super::scroll::Scroll;
 use crate::runtime::Compositor;
 
 const XKB_KEYCODE_OFFSET: u32 = 8;
@@ -11,6 +12,7 @@ pub enum SyntheticInput {
     Key { code: u32, pressed: bool },
     PointerMotion { x: f64, y: f64 },
     PointerButton { code: u32, pressed: bool },
+    PointerScroll { horizontal: f64, vertical: f64 },
 }
 
 impl Compositor {
@@ -38,6 +40,17 @@ impl Compositor {
                     ButtonState::Released
                 };
                 self.handle_pointer_button(code, state, time);
+            }
+            SyntheticInput::PointerScroll {
+                horizontal,
+                vertical,
+            } => {
+                let scroll = Scroll {
+                    source: AxisSource::Wheel,
+                    horizontal,
+                    vertical,
+                };
+                self.handle_pointer_scroll(scroll, time);
             }
         }
     }
