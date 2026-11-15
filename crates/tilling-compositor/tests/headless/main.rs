@@ -1,3 +1,4 @@
+mod control;
 mod globals;
 mod harness;
 mod keyboard;

@@ -54,6 +54,7 @@ impl Compositor {
                 | Effect::WindowModeChanged(_) => {}
             }
         }
+        self.publish(transition);
         self.rearrange();
     }
 
@@ -94,6 +95,8 @@ impl Compositor {
             popups: self.xdg_shell_state.popup_surfaces().len(),
             transaction_pending: self.transactions.is_pending(),
             keyboard_mode: self.keyboard_mode.clone(),
+            control_peers: self.control.len(),
+            control_subscribers: self.control.subscriber_count(),
         }
     }
 

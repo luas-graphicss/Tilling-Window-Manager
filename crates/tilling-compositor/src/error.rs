@@ -39,6 +39,8 @@ pub enum CompositorError {
     BackendUnavailable(&'static str),
     #[error(transparent)]
     Instance(#[from] InstanceError),
+    #[error("open the control socket")]
+    ControlSocket(#[from] tilling_ipc::server::BindError),
     #[error("start the compositor thread")]
     SessionThread(#[source] std::io::Error),
     #[error("compositor session is no longer running")]

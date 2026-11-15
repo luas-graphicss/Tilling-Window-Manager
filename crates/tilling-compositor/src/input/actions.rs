@@ -1,5 +1,5 @@
 use smithay::input::keyboard::XkbConfig;
-use tilling_config::{Action, CommandLine, DEFAULT_MODE, ValidatedConfig};
+use tilling_config::{Action, CommandLine, ConfigError, DEFAULT_MODE, ValidatedConfig};
 use tilling_core::{Command, ModeChange, WindowId, WindowMode};
 
 use super::BindingTable;
@@ -103,14 +103,20 @@ impl Compositor {
         }
     }
 
+    pub(crate) fn reload(&mut self) -> Result<(), ConfigError> {
+        let config = tilling_config::load(&self.config_source)?;
+        self.adopt_config(config);
+        Ok(())
+    }
+
     fn reload_config(&mut self) {
-        match tilling_config::load(&self.config_source) {
-            Ok(config) => self.adopt_config(config),
-            Err(error) => tracing::warn!(%error, "keep the active configuration"),
+        if let Err(error) = self.reload() {
+            tracing::warn!(%error, "keep the active configuration");
         }
     }
 
     fn adopt_config(&mut self, config: ValidatedConfig) {
+        self.config_revision = self.config_revision.saturating_add(1);
         self.bindings = BindingTable::compile(config.bindings());
         if !self.bindings.has_mode(&self.keyboard_mode) {
             DEFAULT_MODE.clone_into(&mut self.keyboard_mode);

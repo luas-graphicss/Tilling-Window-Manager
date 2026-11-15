@@ -10,6 +10,7 @@ use tilling_config::{ConfigSource, ValidatedConfig};
 use tilling_test_support::Client;
 
 const PRIVATE_DIRECTORY_MODE: u32 = 0o700;
+const CONTROL_TIMEOUT: Duration = Duration::from_secs(5);
 const WAIT_LIMIT: Duration = Duration::from_secs(5);
 const WAIT_STEP: Duration = Duration::from_millis(2);
 
@@ -59,6 +60,22 @@ impl Harness {
     pub(crate) fn connect(&self) -> Client {
         Client::connect(self.session.wayland_socket())
             .unwrap_or_else(|error| panic!("test client did not connect: {error}"))
+    }
+
+    pub(crate) fn control(&self) -> tilling_ipc::client::Client {
+        tilling_ipc::client::Client::connect(self.session.control_socket(), CONTROL_TIMEOUT)
+            .unwrap_or_else(|error| panic!("control client did not connect: {error}"))
+    }
+
+    pub(crate) fn wait_for_exit(&self) {
+        let started = Instant::now();
+        while self.session.snapshot().is_ok() {
+            assert!(
+                started.elapsed() < WAIT_LIMIT,
+                "timed out waiting for the compositor to stop"
+            );
+            thread::sleep(WAIT_STEP);
+        }
     }
 
     pub(crate) fn snapshot(&self) -> SessionSnapshot {

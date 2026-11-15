@@ -1,4 +1,5 @@
 mod backend;
+mod control;
 mod desktop;
 mod error;
 mod geometry;

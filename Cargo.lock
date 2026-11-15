@@ -1715,6 +1715,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tilling-config",
  "tilling-core",
+ "tilling-ipc",
  "tilling-test-support",
  "tracing",
 ]

@@ -2,6 +2,8 @@ use std::io;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
+use tilling_ipc::endpoint::{InstanceName, RuntimeDirectory, RuntimeDirectoryError};
+
 const MAX_NAME_BYTES: usize = 32;
 const SHARED_ACCESS_BITS: u32 = 0o077;
 const WAYLAND_SOCKET_PREFIX: &str = "tilling-";
@@ -24,24 +26,36 @@ pub enum InstanceError {
     ForeignOwner(PathBuf),
     #[error("runtime directory {} is accessible by other users", .0.display())]
     SharedAccess(PathBuf),
+    #[error("locate the control socket")]
+    ControlDirectory(#[from] RuntimeDirectoryError),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Instance {
     wayland_socket: PathBuf,
+    control_socket: PathBuf,
 }
 
 impl Instance {
     pub(crate) fn resolve(runtime_dir: &Path, name: &str) -> Result<Self, InstanceError> {
         require_name(name)?;
         require_private_directory(runtime_dir)?;
+        let control_name: InstanceName = name
+            .parse()
+            .map_err(|_| InstanceError::InvalidName(name.to_owned()))?;
+        let control_directory = RuntimeDirectory::open(runtime_dir.to_path_buf())?;
         Ok(Self {
             wayland_socket: runtime_dir.join(format!("{WAYLAND_SOCKET_PREFIX}{name}")),
+            control_socket: control_directory.socket_path(&control_name),
         })
     }
 
     pub(crate) fn wayland_socket(&self) -> &Path {
         &self.wayland_socket
+    }
+
+    pub(crate) fn control_socket(&self) -> &Path {
+        &self.control_socket
     }
 }
 
@@ -97,6 +111,18 @@ mod tests {
         assert_eq!(
             instance.wayland_socket(),
             directory.path().join("tilling-nested-1")
+        );
+    }
+
+    #[test]
+    fn control_socket_lives_where_the_command_line_client_looks_for_instances() {
+        let directory = directory_with_mode(0o700);
+
+        let instance = Instance::resolve(directory.path(), "nested-1").unwrap();
+
+        assert_eq!(
+            instance.control_socket(),
+            directory.path().join("tilling/nested-1/ipc.sock")
         );
     }
 

@@ -19,6 +19,7 @@ smithay = { workspace = true, features = ["desktop", "wayland_frontend"] }
 thiserror = { workspace = true }
 tilling-config = { workspace = true }
 tilling-core = { workspace = true }
+tilling-ipc = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]

@@ -11,6 +11,7 @@ use smithay::reexports::calloop::EventLoop;
 use smithay::reexports::wayland_server::Display;
 
 use crate::backend::Backend;
+use crate::control;
 use crate::error::CompositorError;
 use crate::input::Launcher;
 use crate::options::Options;
@@ -57,6 +58,7 @@ impl Runtime {
         let backend = Backend::start(options.backend, &options.output, &mut compositor)?;
         clients::watch_display(&handle, &mut display)?;
         clients::listen(&handle, instance.wayland_socket())?;
+        control::listen(&handle, instance.control_socket())?;
         let runtime = Self {
             display,
             compositor,

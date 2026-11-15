@@ -14,6 +14,7 @@ use tilling_config::{ConfigSource, DEFAULT_MODE, ValidatedConfig};
 use tilling_core::DesktopState;
 
 use super::{OutputRegistry, Runtime};
+use crate::control::ControlPeers;
 use crate::desktop::initial_desktop;
 use crate::error::CompositorError;
 use crate::input::{BindingTable, Launcher};
@@ -44,6 +45,7 @@ pub(crate) struct Compositor {
     pub(crate) popups: PopupManager,
     pub(crate) config: ValidatedConfig,
     pub(crate) config_source: ConfigSource,
+    pub(crate) config_revision: u64,
     pub(crate) bindings: BindingTable,
     pub(crate) keyboard_mode: String,
     pub(crate) suppressed_keys: HashSet<Keycode>,
@@ -53,6 +55,7 @@ pub(crate) struct Compositor {
     pub(crate) outputs: OutputRegistry,
     pub(crate) scene: Scene,
     pub(crate) transactions: Coordinator,
+    pub(crate) control: ControlPeers,
     frame_demanded: bool,
 }
 
@@ -102,6 +105,7 @@ impl Compositor {
             popups: PopupManager::default(),
             config,
             config_source,
+            config_revision: 0,
             bindings,
             keyboard_mode: DEFAULT_MODE.to_owned(),
             suppressed_keys: HashSet::new(),
@@ -111,6 +115,7 @@ impl Compositor {
             outputs: OutputRegistry::default(),
             scene: Scene::default(),
             transactions: Coordinator::new(transaction_timeout),
+            control: ControlPeers::default(),
             frame_demanded: false,
         })
     }

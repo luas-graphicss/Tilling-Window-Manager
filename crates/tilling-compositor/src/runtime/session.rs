@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 
@@ -7,6 +7,7 @@ use smithay::reexports::calloop::channel::{self, Event, Sender};
 use tilling_core::WindowId;
 
 use super::Runtime;
+use super::instance::Instance;
 use crate::error::CompositorError;
 use crate::input::SyntheticInput;
 use crate::options::Options;
@@ -24,11 +25,13 @@ pub struct SessionSnapshot {
     pub popups: usize,
     pub transaction_pending: bool,
     pub keyboard_mode: String,
+    pub control_peers: usize,
+    pub control_subscribers: usize,
 }
 
 #[derive(Debug)]
 pub struct Session {
-    wayland_socket: PathBuf,
+    instance: Instance,
     requests: Sender<Request>,
     thread: Option<JoinHandle<Result<(), CompositorError>>>,
 }
@@ -40,7 +43,7 @@ enum Request {
     Stop,
 }
 
-type Startup = Result<(PathBuf, Sender<Request>), CompositorError>;
+type Startup = Result<(Instance, Sender<Request>), CompositorError>;
 
 impl Session {
     pub fn start(options: Options) -> Result<Self, CompositorError> {
@@ -49,11 +52,11 @@ impl Session {
             .name(THREAD_NAME.to_owned())
             .spawn(move || serve(options, &announce))
             .map_err(CompositorError::SessionThread)?;
-        let (wayland_socket, requests) = startup
+        let (instance, requests) = startup
             .recv()
             .map_err(|_| CompositorError::SessionClosed)??;
         Ok(Self {
-            wayland_socket,
+            instance,
             requests,
             thread: Some(thread),
         })
@@ -61,7 +64,12 @@ impl Session {
 
     #[must_use]
     pub fn wayland_socket(&self) -> &Path {
-        &self.wayland_socket
+        self.instance.wayland_socket()
+    }
+
+    #[must_use]
+    pub fn control_socket(&self) -> &Path {
+        self.instance.control_socket()
     }
 
     pub fn snapshot(&self) -> Result<SessionSnapshot, CompositorError> {
@@ -122,7 +130,7 @@ fn serve(options: Options, announce: &mpsc::Sender<Startup>) -> Result<(), Compo
 type Prepared = (
     EventLoop<'static, Runtime>,
     Runtime,
-    (PathBuf, Sender<Request>),
+    (Instance, Sender<Request>),
 );
 
 fn prepare(options: Options) -> Result<Prepared, CompositorError> {
@@ -141,6 +149,5 @@ fn prepare(options: Options) -> Result<Prepared, CompositorError> {
             Event::Msg(Request::Stop) | Event::Closed => runtime.compositor.stop(),
         })
         .map_err(|error| CompositorError::EventSource(error.error))?;
-    let startup = (instance.wayland_socket().to_path_buf(), requests);
-    Ok((event_loop, runtime, startup))
+    Ok((event_loop, runtime, (instance, requests)))
 }
