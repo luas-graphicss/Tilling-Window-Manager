@@ -9,14 +9,20 @@ use wayland_client::protocol::wl_shm::WlShm;
 use wayland_client::protocol::wl_shm_pool::WlShmPool;
 use wayland_client::protocol::wl_surface::{self, WlSurface};
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle, WEnum, delegate_noop};
+use wayland_protocols::xdg::shell::client::xdg_popup::{self, XdgPopup};
+use wayland_protocols::xdg::shell::client::xdg_positioner::XdgPositioner;
 use wayland_protocols::xdg::shell::client::xdg_surface::{self, XdgSurface};
 use wayland_protocols::xdg::shell::client::xdg_toplevel::{self, XdgToplevel};
 use wayland_protocols::xdg::shell::client::xdg_wm_base::{self, XdgWmBase};
 
-use crate::state::{ButtonEvent, ClientState, KeyEvent, ProposedState, ScrollEvent};
+use crate::state::{
+    ButtonEvent, ClientState, KeyEvent, PopupConfigure, PopupIndex, ProposedState, ScrollEvent,
+};
 
 delegate_noop!(ClientState: WlCompositor);
 delegate_noop!(ClientState: WlShmPool);
+delegate_noop!(ClientState: XdgPositioner);
+
 delegate_noop!(ClientState: ignore WlShm);
 
 impl Dispatch<WlRegistry, GlobalListContents> for ClientState {
@@ -37,6 +43,18 @@ impl Dispatch<WlSurface, usize> for ClientState {
         _surface: &WlSurface,
         _event: wl_surface::Event,
         _toplevel: &usize,
+        _connection: &Connection,
+        _queue: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<WlSurface, PopupIndex> for ClientState {
+    fn event(
+        _state: &mut Self,
+        _surface: &WlSurface,
+        _event: wl_surface::Event,
+        _popup: &PopupIndex,
         _connection: &Connection,
         _queue: &QueueHandle<Self>,
     ) {
@@ -86,6 +104,56 @@ impl Dispatch<XdgSurface, usize> for ClientState {
             && let Some(record) = state.toplevels.get_mut(*toplevel)
         {
             record.configure(serial);
+        }
+    }
+}
+
+impl Dispatch<XdgSurface, PopupIndex> for ClientState {
+    fn event(
+        state: &mut Self,
+        _surface: &XdgSurface,
+        event: xdg_surface::Event,
+        popup: &PopupIndex,
+        _connection: &Connection,
+        _queue: &QueueHandle<Self>,
+    ) {
+        if let xdg_surface::Event::Configure { serial } = event
+            && let Some(record) = state.popups.get_mut(popup.0)
+            && let Some(proposed) = record.proposed.take()
+        {
+            record.configured = Some((serial, proposed));
+        }
+    }
+}
+
+impl Dispatch<XdgPopup, PopupIndex> for ClientState {
+    fn event(
+        state: &mut Self,
+        _popup: &XdgPopup,
+        event: xdg_popup::Event,
+        popup: &PopupIndex,
+        _connection: &Connection,
+        _queue: &QueueHandle<Self>,
+    ) {
+        let Some(record) = state.popups.get_mut(popup.0) else {
+            return;
+        };
+        match event {
+            xdg_popup::Event::Configure {
+                x,
+                y,
+                width,
+                height,
+            } => {
+                record.proposed = Some(PopupConfigure {
+                    x,
+                    y,
+                    width,
+                    height,
+                });
+            }
+            xdg_popup::Event::PopupDone => record.dismissed = true,
+            _ => {}
         }
     }
 }
@@ -152,8 +220,12 @@ impl Dispatch<WlKeyboard, ()> for ClientState {
         match event {
             wl_keyboard::Event::Enter { surface, .. } => {
                 state.seat.keyboard_focus = toplevel_of(&surface);
+                state.seat.keyboard_popup = popup_of(&surface);
             }
-            wl_keyboard::Event::Leave { .. } => state.seat.keyboard_focus = None,
+            wl_keyboard::Event::Leave { .. } => {
+                state.seat.keyboard_focus = None;
+                state.seat.keyboard_popup = None;
+            }
             wl_keyboard::Event::Key {
                 key,
                 state: WEnum::Value(key_state),
@@ -228,4 +300,8 @@ impl Dispatch<WlPointer, ()> for ClientState {
 
 fn toplevel_of(surface: &WlSurface) -> Option<usize> {
     surface.data::<usize>().copied()
+}
+
+fn popup_of(surface: &WlSurface) -> Option<usize> {
+    surface.data::<PopupIndex>().map(|popup| popup.0)
 }

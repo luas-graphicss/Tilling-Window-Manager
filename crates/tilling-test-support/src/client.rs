@@ -16,6 +16,7 @@ use wayland_protocols::xdg::shell::client::xdg_wm_base::XdgWmBase;
 
 use crate::buffer;
 use crate::error::ClientError;
+use crate::popup::Popup;
 use crate::state::{
     AdvertisedGlobal, ButtonEvent, ClientState, KeyEvent, ScrollEvent, ToplevelConfigure,
     ToplevelRecord,
@@ -23,8 +24,8 @@ use crate::state::{
 
 const DEFAULT_WIDTH: u32 = 640;
 const DEFAULT_HEIGHT: u32 = 480;
-const WAIT_LIMIT: Duration = Duration::from_secs(5);
-const WAIT_STEP: Duration = Duration::from_millis(2);
+pub(crate) const WAIT_LIMIT: Duration = Duration::from_secs(5);
+pub(crate) const WAIT_STEP: Duration = Duration::from_millis(2);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ToplevelId(usize);
@@ -39,14 +40,15 @@ struct Toplevel {
 
 #[derive(Debug)]
 pub struct Client {
-    queue: EventQueue<ClientState>,
-    state: ClientState,
+    pub(crate) queue: EventQueue<ClientState>,
+    pub(crate) state: ClientState,
     globals: Vec<AdvertisedGlobal>,
-    compositor: WlCompositor,
-    shm: WlShm,
-    wm_base: XdgWmBase,
-    seat: WlSeat,
+    pub(crate) compositor: WlCompositor,
+    pub(crate) shm: WlShm,
+    pub(crate) wm_base: XdgWmBase,
+    pub(crate) seat: WlSeat,
     toplevels: Vec<Option<Toplevel>>,
+    pub(crate) popups: Vec<Option<Popup>>,
 }
 
 impl Client {
@@ -90,6 +92,7 @@ impl Client {
             wm_base,
             seat,
             toplevels: Vec::new(),
+            popups: Vec::new(),
         })
     }
 
@@ -356,6 +359,10 @@ impl Client {
             .toplevels
             .get(toplevel.0)
             .is_some_and(|record| record.close_requested)
+    }
+
+    pub(crate) fn xdg_surface_of(&self, toplevel: ToplevelId) -> Result<&XdgSurface, ClientError> {
+        Ok(&self.toplevel(toplevel)?.xdg_surface)
     }
 
     fn present(

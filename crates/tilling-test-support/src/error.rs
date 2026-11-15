@@ -29,6 +29,8 @@ pub enum ClientError {
     BufferTooLarge { width: u32, height: u32 },
     #[error("toplevel was already destroyed")]
     DestroyedToplevel,
+    #[error("popup was already destroyed")]
+    DestroyedPopup,
     #[error("no pointer button event was received yet")]
     NoButtonSerial,
     #[error("timed out waiting for {0}")]

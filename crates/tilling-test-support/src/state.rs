@@ -36,6 +36,24 @@ pub struct ScrollEvent {
     pub vertical: f64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PopupConfigure {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct PopupIndex(pub(crate) usize);
+
+#[derive(Debug, Default)]
+pub(crate) struct PopupRecord {
+    pub(crate) proposed: Option<PopupConfigure>,
+    pub(crate) configured: Option<(u32, PopupConfigure)>,
+    pub(crate) dismissed: bool,
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ProposedState {
     width: u32,
@@ -58,6 +76,7 @@ pub(crate) struct SeatLog {
     pub(crate) has_keyboard: bool,
     pub(crate) has_pointer: bool,
     pub(crate) keyboard_focus: Option<usize>,
+    pub(crate) keyboard_popup: Option<usize>,
     pub(crate) keys: Vec<KeyEvent>,
     pub(crate) pointer_focus: Option<usize>,
     pub(crate) pointer_position: Option<(f64, f64)>,
@@ -69,6 +88,7 @@ pub(crate) struct SeatLog {
 #[derive(Debug, Default)]
 pub(crate) struct ClientState {
     pub(crate) toplevels: Vec<ToplevelRecord>,
+    pub(crate) popups: Vec<PopupRecord>,
     pub(crate) seat: SeatLog,
     pub(crate) released_buffers: usize,
 }
