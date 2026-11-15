@@ -5,6 +5,7 @@ use tilling_ipc::{
 };
 
 const ABSENT: &str = "-";
+const MILLISECONDS_PER_SECOND: u64 = 1_000;
 const REPLACEMENT: char = '\u{fffd}';
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,6 +72,13 @@ fn describe_reply(reply: &Reply) -> String {
             diagnostics.revision, diagnostics.outputs, diagnostics.workspaces, diagnostics.windows
         ),
         Reply::Accepted { revision } => format!("accepted at revision {revision}"),
+        Reply::OutputChangePending {
+            revision,
+            confirm_within_ms,
+        } => format!(
+            "changed at revision {revision}, reverted in {} s unless `tillingctl output confirm` runs",
+            confirm_within_ms.div_ceil(MILLISECONDS_PER_SECOND)
+        ),
         Reply::Subscribed(snapshot) => describe_snapshot(snapshot),
     }
 }
@@ -218,7 +226,7 @@ mod tests {
             }),
         };
 
-        assert_eq!(text(&reply), "tilling 0.1.0 (protocol 1.0)");
+        assert_eq!(text(&reply), "tilling 0.1.0 (protocol 1.1)");
     }
 
     #[test]
@@ -244,6 +252,21 @@ mod tests {
 
         assert!(rendered.ends_with("title evil\u{fffd}[2J\u{fffd}title"));
         assert!(!rendered.contains(['\u{1b}', '\n']));
+    }
+
+    #[test]
+    fn pending_output_change_says_how_long_it_waits_for_confirmation() {
+        let reply = Outcome::Success {
+            result: Reply::OutputChangePending {
+                revision: 12,
+                confirm_within_ms: 14_200,
+            },
+        };
+
+        assert_eq!(
+            text(&reply),
+            "changed at revision 12, reverted in 15 s unless `tillingctl output confirm` runs"
+        );
     }
 
     #[test]

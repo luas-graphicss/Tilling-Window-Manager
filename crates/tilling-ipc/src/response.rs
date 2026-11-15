@@ -37,7 +37,13 @@ pub enum Reply {
     Windows(Vec<WindowInfo>),
     Config(ConfigInfo),
     Diagnostics(DiagnosticsInfo),
-    Accepted { revision: u64 },
+    Accepted {
+        revision: u64,
+    },
+    OutputChangePending {
+        revision: u64,
+        confirm_within_ms: u64,
+    },
     Subscribed(Snapshot),
 }
 

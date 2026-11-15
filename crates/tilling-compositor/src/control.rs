@@ -1,4 +1,5 @@
 mod events;
+mod outputs;
 mod peers;
 mod refusal;
 mod requests;

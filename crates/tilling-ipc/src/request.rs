@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::resource::{Direction, Layout, ResourceId, WindowMode};
+use crate::resource::{Direction, Layout, OutputChange, ResourceId, WindowMode};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Request {
     pub request_id: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -11,7 +11,7 @@ pub struct Request {
     pub call: Call,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "method", content = "params", rename_all = "snake_case")]
 pub enum Call {
     GetVersion,
@@ -42,6 +42,12 @@ pub enum Call {
     SwitchWorkspace {
         workspace: ResourceId,
     },
+    ConfigureOutput {
+        output: ResourceId,
+        change: OutputChange,
+    },
+    ConfirmOutputChange,
+    RevertOutputChange,
     ReloadConfig,
     RequestLock,
     Quit,

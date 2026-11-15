@@ -23,7 +23,7 @@ use crate::control::ControlPeers;
 use crate::desktop::initial_desktop;
 use crate::error::CompositorError;
 use crate::input::{BindingTable, InputSerials, Launcher};
-use crate::output::OutputRegistry;
+use crate::output::{OutputRegistry, OutputTrial};
 #[cfg(feature = "drm")]
 use crate::protocol::DmabufImports;
 use crate::render::FrameStats;
@@ -38,6 +38,7 @@ pub(crate) struct Settings {
     pub(crate) config: ValidatedConfig,
     pub(crate) config_source: ConfigSource,
     pub(crate) transaction_timeout: Duration,
+    pub(crate) output_confirmation: Duration,
     pub(crate) launcher: Launcher,
 }
 
@@ -68,6 +69,8 @@ pub(crate) struct Compositor {
     pub(crate) desktop: DesktopState,
     pub(crate) windows: WindowRegistry,
     pub(crate) outputs: OutputRegistry,
+    pub(crate) output_confirmation: Duration,
+    pub(crate) output_trial: Option<OutputTrial>,
     pub(crate) scene: Scene,
     pub(crate) transactions: Coordinator,
     pub(crate) control: ControlPeers,
@@ -86,6 +89,7 @@ impl Compositor {
             config,
             config_source,
             transaction_timeout,
+            output_confirmation,
             launcher,
         } = settings;
         let compositor_state = CompositorState::new::<Self>(&display_handle);
@@ -141,6 +145,8 @@ impl Compositor {
             desktop,
             windows: WindowRegistry::default(),
             outputs: OutputRegistry::default(),
+            output_confirmation,
+            output_trial: None,
             scene: Scene::default(),
             transactions: Coordinator::new(transaction_timeout),
             control: ControlPeers::default(),

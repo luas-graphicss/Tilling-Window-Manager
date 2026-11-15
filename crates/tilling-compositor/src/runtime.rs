@@ -50,6 +50,7 @@ impl Runtime {
             config: options.config,
             config_source: options.config_source,
             transaction_timeout: options.transaction_timeout,
+            output_confirmation: options.output_confirmation,
             launcher: Launcher::new(&options.runtime_dir, instance.wayland_socket()),
         };
         let mut compositor = Compositor::new(

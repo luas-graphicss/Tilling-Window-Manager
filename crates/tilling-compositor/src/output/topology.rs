@@ -76,6 +76,7 @@ impl Compositor {
         let Some(registered) = self.outputs.remove(output) else {
             return;
         };
+        self.forget_output_trial(registered.id);
         self.retire_global(registered.global);
         self.run(Command::RemoveOutput {
             output: registered.id,

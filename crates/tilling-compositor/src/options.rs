@@ -6,6 +6,7 @@ use tilling_config::{ConfigSource, ValidatedConfig};
 const DEFAULT_OUTPUT_WIDTH: u32 = 1280;
 const DEFAULT_OUTPUT_HEIGHT: u32 = 720;
 const DEFAULT_TRANSACTION_TIMEOUT: Duration = Duration::from_millis(200);
+const DEFAULT_OUTPUT_CONFIRMATION: Duration = Duration::from_secs(15);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BackendKind {
@@ -41,6 +42,7 @@ pub struct Options {
     pub instance: String,
     pub output: VirtualOutput,
     pub transaction_timeout: Duration,
+    pub output_confirmation: Duration,
 }
 
 impl Options {
@@ -63,6 +65,7 @@ impl Options {
                 height: DEFAULT_OUTPUT_HEIGHT,
             },
             transaction_timeout: DEFAULT_TRANSACTION_TIMEOUT,
+            output_confirmation: DEFAULT_OUTPUT_CONFIRMATION,
         }
     }
 }

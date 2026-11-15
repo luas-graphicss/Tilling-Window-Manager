@@ -203,6 +203,24 @@ impl Device {
         }
     }
 
+    pub(super) fn follow_modes(
+        &mut self,
+        gpus: &mut Gpus,
+        primary: DrmNode,
+        compositor: &mut Compositor,
+    ) {
+        for (crtc, surface) in &mut self.surfaces {
+            let mut target = RenderTarget {
+                gpus: &mut *gpus,
+                primary,
+                render_node: self.render_node,
+                device: self.node,
+                crtc: *crtc,
+            };
+            surface.follow_mode(&mut target, compositor);
+        }
+    }
+
     pub(super) fn vblank(
         &mut self,
         crtc: crtc::Handle,
@@ -309,7 +327,7 @@ impl Device {
                 describe(&name, monitor_key.clone(), monitor.as_ref(), info, drm_mode);
             match self.light_up(description, info.handle(), crtc, drm_mode, gpus, compositor) {
                 Ok((output, kms)) => {
-                    let surface = Surface::new(output, info.handle(), monitor.clone(), kms);
+                    let surface = Surface::new(output, info, monitor.clone(), kms, drm_mode);
                     self.surfaces.insert(crtc, surface);
                     connected_monitors.extend(monitor);
                     compositor.demand_frame();

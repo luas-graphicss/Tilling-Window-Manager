@@ -1,12 +1,14 @@
+mod mode_switch;
+
 use std::time::Duration;
 
 use smithay::backend::allocator::Fourcc;
 use smithay::backend::drm::compositor::FrameFlags;
 use smithay::backend::drm::{DrmEventMetadata, DrmNode};
-use smithay::output::Output;
+use smithay::output::{Mode as OutputMode, Output};
 use smithay::reexports::calloop::RegistrationToken;
 use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
-use smithay::reexports::drm::control::{connector, crtc};
+use smithay::reexports::drm::control::{self, connector, crtc};
 
 use super::device::KmsOutput;
 use super::frame_clock::{FrameClock, Wait};
@@ -29,6 +31,8 @@ enum RenderError {
     Compose(String),
     #[error("queue the frame: {0}")]
     Queue(String),
+    #[error("change the display mode: {0}")]
+    Mode(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,6 +53,8 @@ pub(super) struct Surface {
     output: Output,
     connector: connector::Handle,
     monitor: Option<Monitor>,
+    modes: Vec<control::Mode>,
+    programmed: OutputMode,
     kms: KmsOutput,
     view: SceneView,
     pointer: PointerSprite,
@@ -72,15 +78,21 @@ impl RenderTarget<'_> {
 impl Surface {
     pub(super) fn new(
         output: Output,
-        connector: connector::Handle,
+        connector: &connector::Info,
         monitor: Option<Monitor>,
         kms: KmsOutput,
+        programmed: control::Mode,
     ) -> Self {
+        for offered in connector.modes() {
+            output.add_mode(OutputMode::from(*offered));
+        }
         Self {
             view: SceneView::new(&output),
             output,
-            connector,
+            connector: connector.handle(),
             monitor,
+            modes: connector.modes().to_vec(),
+            programmed: OutputMode::from(programmed),
             kms,
             pointer: PointerSprite::new(),
             clock: FrameClock::default(),

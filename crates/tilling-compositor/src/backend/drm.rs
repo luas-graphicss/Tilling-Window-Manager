@@ -97,6 +97,11 @@ impl DrmBackend {
         }
         self.input.follow_config(compositor);
         self.import_client_buffers(compositor);
+        if self.seat.is_active() {
+            for device in self.devices.values_mut() {
+                device.follow_modes(&mut self.gpus, self.primary, compositor);
+            }
+        }
     }
 
     pub(crate) fn redraw(&mut self, compositor: &mut Compositor) {

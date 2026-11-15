@@ -6,6 +6,7 @@ mod harness;
 mod keyboard;
 mod keys;
 mod lifecycle;
+mod output_changes;
 mod outputs;
 mod pointer;
 mod popups;
