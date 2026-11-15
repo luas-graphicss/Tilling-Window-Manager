@@ -52,16 +52,21 @@ fn output_info() -> OutputInfo {
 }
 
 fn payload_of(frame: &[u8]) -> Vec<u8> {
-    let mut frames = FrameDecoder::default().push(frame).unwrap();
-    assert_eq!(frames.len(), 1);
-    frames.remove(0)
+    let frames = FrameDecoder::default()
+        .push(frame)
+        .unwrap_or_else(|error| panic!("frame was rejected: {error}"));
+    let [payload] = frames.as_slice() else {
+        panic!("expected one frame, got {}", frames.len());
+    };
+    payload.clone()
 }
 
 fn round_trip<T>(message: &T) -> T
 where
     T: serde::Serialize + serde::de::DeserializeOwned,
 {
-    decode(&payload_of(&encode(message).unwrap())).unwrap()
+    let frame = encode(message).unwrap_or_else(|error| panic!("message was not encoded: {error}"));
+    decode(&payload_of(&frame)).unwrap_or_else(|error| panic!("message was not decoded: {error}"))
 }
 
 #[test]
