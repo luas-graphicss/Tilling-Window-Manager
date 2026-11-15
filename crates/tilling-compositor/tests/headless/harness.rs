@@ -6,7 +6,8 @@ use std::time::{Duration, Instant};
 
 use tempfile::TempDir;
 use tilling_compositor::{
-    BackendKind, FrameStats, Options, Session, SessionSnapshot, SyntheticInput, VirtualOutput,
+    BackendKind, Capability, FrameStats, Options, Session, SessionSnapshot, SyntheticInput,
+    VirtualOutput,
 };
 use tilling_config::{ConfigSource, ValidatedConfig};
 use tilling_test_support::Client;
@@ -63,6 +64,15 @@ impl Harness {
     pub(crate) fn connect(&self) -> Client {
         Client::connect(self.session.wayland_socket())
             .unwrap_or_else(|error| panic!("test client did not connect: {error}"))
+    }
+
+    pub(crate) fn connect_with(&self, capabilities: &[Capability]) -> Client {
+        let connection = self
+            .session
+            .connect_privileged(capabilities)
+            .unwrap_or_else(|error| panic!("privileged connection was refused: {error}"));
+        Client::from_stream(connection)
+            .unwrap_or_else(|error| panic!("privileged client did not connect: {error}"))
     }
 
     pub(crate) fn control(&self) -> tilling_ipc::client::Client {
@@ -160,6 +170,11 @@ impl Harness {
 
     pub(crate) fn move_pointer(&self, x: f64, y: f64) -> SessionSnapshot {
         self.inject(SyntheticInput::PointerMotion { x, y });
+        self.snapshot()
+    }
+
+    pub(crate) fn nudge_pointer(&self, dx: f64, dy: f64) -> SessionSnapshot {
+        self.inject(SyntheticInput::PointerDelta { dx, dy });
         self.snapshot()
     }
 

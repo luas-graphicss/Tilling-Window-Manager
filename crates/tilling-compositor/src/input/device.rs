@@ -3,9 +3,9 @@ use smithay::backend::input::{
     PointerAxisEvent, PointerButtonEvent, PointerMotionEvent,
 };
 use smithay::output::Output;
-use smithay::utils::{Logical, Size};
 
 use super::scroll::Scroll;
+use crate::geometry::logical_size;
 use crate::runtime::Compositor;
 
 const WHEEL_STEP: f64 = 15.0;
@@ -17,6 +17,7 @@ impl Compositor {
         event: InputEvent<B>,
         absolute_target: Option<&Output>,
     ) {
+        self.note_activity();
         match event {
             InputEvent::Keyboard { event } => {
                 self.handle_key(event.key_code(), event.state(), event.time_msec());
@@ -44,13 +45,6 @@ impl Compositor {
             _ => {}
         }
     }
-}
-
-fn logical_size(output: &Output) -> Option<Size<i32, Logical>> {
-    let scale = output.current_scale().fractional_scale();
-    let mode = output.current_mode()?;
-    let oriented = output.current_transform().transform_size(mode.size);
-    Some(oriented.to_f64().to_logical(scale).to_i32_round())
 }
 
 fn scroll_of<B: InputBackend>(event: &B::PointerAxisEvent) -> Scroll {

@@ -2,11 +2,16 @@ use smithay::backend::renderer::damage::{Error as DamageError, OutputDamageTrack
 use smithay::backend::renderer::{Color32F, ImportAll, ImportMem, Renderer};
 use smithay::output::Output;
 use smithay::utils::{Physical, Rectangle, Scale};
+use smithay::wayland::shell::wlr_layer::Layer;
 
 use super::borders::BorderCache;
 use super::cursor::cursor_elements;
+use super::curtain::Curtain;
+use super::drag_icon::drag_icon_elements;
 use super::elements::{SceneElement, content_elements, popup_elements};
+use super::layers::layer_elements;
 use crate::runtime::Compositor;
+use crate::scene::SceneLayer;
 
 pub(crate) const BACKGROUND: Color32F = Color32F::new(0.07, 0.08, 0.10, 1.0);
 
@@ -16,6 +21,7 @@ pub(crate) type Damage = Vec<Rectangle<i32, Physical>>;
 pub(crate) struct SceneView {
     output: Output,
     borders: BorderCache,
+    curtain: Curtain,
 }
 
 #[derive(Debug)]
@@ -29,6 +35,7 @@ impl SceneView {
         Self {
             output: output.clone(),
             borders: BorderCache::default(),
+            curtain: Curtain::default(),
         }
     }
 
@@ -53,13 +60,36 @@ impl SceneView {
             .filter_map(|placed| Some((placed, compositor.windows.by_id(placed.id)?)))
             .collect();
         let mut elements = cursor_elements(compositor, renderer, origin, scale);
+        if compositor.lock.is_engaged() {
+            let curtain = &mut self.curtain;
+            elements.extend(curtain.elements(compositor, renderer, &self.output, scale));
+            return elements;
+        }
+        elements.extend(drag_icon_elements(compositor, renderer, origin, scale));
+        elements.extend(layer_elements(
+            renderer,
+            &self.output,
+            Layer::Overlay,
+            scale,
+        ));
         for (placed, managed) in &windows {
             elements.extend(popup_elements(renderer, placed, managed, origin, scale));
         }
-        for (placed, managed) in &windows {
+        let (fullscreen, beside_panels): (Vec<_>, Vec<_>) = windows
+            .iter()
+            .partition(|(placed, _)| placed.layer == SceneLayer::Fullscreen);
+        let panels = layer_elements(renderer, &self.output, Layer::Top, scale);
+        for (placed, managed) in fullscreen {
+            elements.extend(content_elements(renderer, placed, managed, origin, scale));
+        }
+        elements.extend(panels);
+        for (placed, managed) in beside_panels {
             elements.extend(content_elements(renderer, placed, managed, origin, scale));
             let borders = self.borders.elements(placed, origin, scale);
             elements.extend(borders.into_iter().map(SceneElement::Border));
+        }
+        for level in [Layer::Bottom, Layer::Background] {
+            elements.extend(layer_elements(renderer, &self.output, level, scale));
         }
         self.borders.forget_windows_outside(&compositor.scene);
         elements

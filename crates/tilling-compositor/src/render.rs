@@ -1,6 +1,9 @@
 mod borders;
 mod cursor;
+mod curtain;
+mod drag_icon;
 mod elements;
+mod layers;
 mod painter;
 #[cfg(feature = "drm")]
 mod pointer_sprite;

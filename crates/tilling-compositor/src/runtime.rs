@@ -18,7 +18,7 @@ use crate::options::Options;
 use instance::Instance;
 use state::Settings;
 
-pub(crate) use clients::ClientState;
+pub(crate) use clients::{ClientState, Departures};
 pub(crate) use state::Compositor;
 pub(crate) use usage::ProcessUsage;
 
@@ -88,6 +88,8 @@ impl Runtime {
 
     fn after_dispatch(&mut self) {
         self.compositor.settle();
+        self.compositor.review_pointer_constraint();
+        self.compositor.drop_selections_of_departed_clients();
         self.compositor.popups.cleanup();
         self.backend.follow(&mut self.compositor);
         if self.compositor.take_frame_demand() {

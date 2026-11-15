@@ -1,12 +1,14 @@
 use std::time::Duration;
 
+use smithay::desktop::layer_map_for_output;
 use smithay::desktop::utils::send_frames_surface_tree;
 use smithay::output::Output;
 use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
-use smithay::utils::SERIAL_COUNTER;
+use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
+use smithay::utils::IsAlive;
 use tilling_config::ValidatedConfig;
 use tilling_core::{
-    Command, DesktopState, Effect, Transition, TransitionError, WindowId, WorkspaceId,
+    Command, DesktopState, Effect, OutputId, Transition, TransitionError, WindowId, WorkspaceId,
 };
 
 use crate::error::CompositorError;
@@ -44,10 +46,10 @@ impl Compositor {
         }
         for effect in &transition.effects {
             match *effect {
-                Effect::FocusChanged { current, .. } => self.focus_keyboard(current),
+                Effect::FocusChanged { .. } => self.sync_keyboard_focus(),
                 Effect::WindowClosed(window) => self.retire_window(window),
+                Effect::OutputConfigured(output) => self.follow_output_change(output),
                 Effect::OutputAdded(_)
-                | Effect::OutputConfigured(_)
                 | Effect::OutputRemoved(_)
                 | Effect::WorkspaceCreated(_)
                 | Effect::WorkspaceShown { .. }
@@ -71,7 +73,19 @@ impl Compositor {
         }
     }
 
-    pub(crate) fn send_frame_callbacks(&self, output: &Output) {
+    pub(crate) fn send_frame_callbacks(&mut self, output: &Output) {
+        self.lock.output_covered(output);
+        if self.lock.is_engaged() {
+            let curtain = self.lock.surface_on(output);
+            let shown = curtain.map(|surface| surface.wl_surface().clone());
+            self.send_frames(output, shown.as_ref());
+        } else {
+            self.send_desktop_frames(output);
+        }
+        self.send_frames(output, self.cursor_surface().cloned().as_ref());
+    }
+
+    fn send_desktop_frames(&self, output: &Output) {
         let elapsed = self.elapsed();
         let shown = self.outputs.id_of(output);
         let on_output = |placed: &&SceneWindow| Some(placed.output) == shown;
@@ -84,11 +98,31 @@ impl Compositor {
                     });
             }
         }
-        if let Some(cursor) = self.cursor_surface() {
-            send_frames_surface_tree(cursor, output, elapsed, Some(Duration::ZERO), |_, _| {
+        for layer in layer_map_for_output(output).layers() {
+            layer.send_frame(output, elapsed, Some(Duration::ZERO), |_, _| {
                 Some(output.clone())
             });
         }
+        let dragged = self.drag_icon.as_ref().filter(|icon| icon.alive());
+        self.send_frames(output, dragged);
+    }
+
+    fn send_frames(&self, output: &Output, surface: Option<&WlSurface>) {
+        let Some(surface) = surface else {
+            return;
+        };
+        let throttle = Some(Duration::ZERO);
+        send_frames_surface_tree(surface, output, self.elapsed(), throttle, |_, _| {
+            Some(output.clone())
+        });
+    }
+
+    fn follow_output_change(&mut self, output: OutputId) {
+        let Some(output) = self.outputs.by_id(output).cloned() else {
+            return;
+        };
+        self.arrange_layers(&output);
+        self.resize_lock_surface(&output);
     }
 
     pub(crate) fn workspace_named(&self, name: &str) -> Option<WorkspaceId> {
@@ -111,6 +145,8 @@ impl Compositor {
             control_peers: self.control.len(),
             control_subscribers: self.control.subscriber_count(),
             frames: self.frames,
+            layers: self.layer_count(),
+            locked: self.lock.is_engaged(),
         }
     }
 
@@ -147,13 +183,5 @@ impl Compositor {
         if self.scene.remove(window) {
             self.demand_frame();
         }
-    }
-
-    fn focus_keyboard(&mut self, window: Option<WindowId>) {
-        let Some(keyboard) = self.seat.get_keyboard() else {
-            return;
-        };
-        let surface = window.and_then(|id| self.windows.surface_of(id)).cloned();
-        keyboard.set_focus(self, surface, SERIAL_COUNTER.next_serial());
     }
 }

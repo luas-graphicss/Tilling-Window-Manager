@@ -62,6 +62,9 @@ impl Compositor {
             self.request_terminal_switch(terminal);
             return FilterResult::Intercept(None);
         }
+        if self.lock.is_engaged() {
+            return FilterResult::Forward;
+        }
         let mut candidates = handle.raw_syms();
         candidates.push(handle.modified_sym());
         let held = held_modifiers(modifiers);

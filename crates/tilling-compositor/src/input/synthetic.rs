@@ -11,6 +11,7 @@ const XKB_KEYCODE_OFFSET: u32 = 8;
 pub enum SyntheticInput {
     Key { code: u32, pressed: bool },
     PointerMotion { x: f64, y: f64 },
+    PointerDelta { dx: f64, dy: f64 },
     PointerButton { code: u32, pressed: bool },
     PointerScroll { horizontal: f64, vertical: f64 },
     HostFocusLost,
@@ -19,6 +20,9 @@ pub enum SyntheticInput {
 impl Compositor {
     pub(crate) fn inject(&mut self, input: SyntheticInput) {
         let time = self.event_time();
+        if input != SyntheticInput::HostFocusLost {
+            self.note_activity();
+        }
         match input {
             SyntheticInput::Key { code, pressed } => {
                 let Some(keycode) = code.checked_add(XKB_KEYCODE_OFFSET) else {
@@ -33,6 +37,9 @@ impl Compositor {
             }
             SyntheticInput::PointerMotion { x, y } => {
                 self.handle_pointer_motion(Point::from((x, y)), time);
+            }
+            SyntheticInput::PointerDelta { dx, dy } => {
+                self.handle_pointer_delta(Point::from((dx, dy)), time);
             }
             SyntheticInput::PointerButton { code, pressed } => {
                 let state = if pressed {
