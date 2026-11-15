@@ -126,3 +126,28 @@ fn repeated_map_and_destroy_cycles_do_not_accumulate_resources() {
     assert_eq!(snapshot.popups, 0);
     assert_eq!(snapshot.scene.windows()[0].content.width(), 1260);
 }
+
+#[test]
+fn buffer_larger_than_its_pool_disconnects_only_the_client_that_sent_it() {
+    let harness = Harness::start();
+    let mut healthy = harness.connect();
+    let kept = healthy.create_toplevel("org.example.Editor", "notes");
+    healthy.map(kept).unwrap();
+    let mut faulty = harness.connect();
+    let window = faulty.create_toplevel("org.example.Viewer", "broken");
+    faulty.map(window).unwrap();
+    healthy.settle().unwrap();
+    harness.published(2);
+
+    faulty.attach_buffer_beyond_its_pool(window).unwrap();
+    let rejection = faulty.roundtrip().unwrap_err();
+    harness.wait_until("the faulty client is gone", |snapshot| {
+        snapshot.toplevels == 1
+    });
+    healthy.settle().unwrap();
+    let snapshot = harness.published(1);
+
+    assert_eq!(rejection.protocol_error(), Some(("wl_shm_pool", 1)));
+    assert_eq!(snapshot.mapped_windows, 1);
+    assert_eq!(snapshot.scene.windows()[0].content.width(), 1260);
+}
