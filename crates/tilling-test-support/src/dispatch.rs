@@ -2,7 +2,7 @@ use wayland_client::globals::GlobalListContents;
 use wayland_client::protocol::wl_buffer::{self, WlBuffer};
 use wayland_client::protocol::wl_compositor::WlCompositor;
 use wayland_client::protocol::wl_keyboard::{self, KeyState, WlKeyboard};
-use wayland_client::protocol::wl_pointer::{self, ButtonState, WlPointer};
+use wayland_client::protocol::wl_pointer::{self, Axis, ButtonState, WlPointer};
 use wayland_client::protocol::wl_registry::{self, WlRegistry};
 use wayland_client::protocol::wl_seat::{self, Capability, WlSeat};
 use wayland_client::protocol::wl_shm::WlShm;
@@ -13,7 +13,7 @@ use wayland_protocols::xdg::shell::client::xdg_surface::{self, XdgSurface};
 use wayland_protocols::xdg::shell::client::xdg_toplevel::{self, XdgToplevel};
 use wayland_protocols::xdg::shell::client::xdg_wm_base::{self, XdgWmBase};
 
-use crate::state::{ButtonEvent, ClientState, KeyEvent, ProposedState};
+use crate::state::{ButtonEvent, ClientState, KeyEvent, ProposedState, ScrollEvent};
 
 delegate_noop!(ClientState: WlCompositor);
 delegate_noop!(ClientState: WlShmPool);
@@ -196,12 +196,30 @@ impl Dispatch<WlPointer, ()> for ClientState {
                 ..
             } => state.seat.pointer_position = Some((surface_x, surface_y)),
             wl_pointer::Event::Button {
+                serial,
                 button,
                 state: WEnum::Value(button_state),
                 ..
-            } => state.seat.buttons.push(ButtonEvent {
-                code: button,
-                pressed: button_state == ButtonState::Pressed,
+            } => {
+                state.seat.button_serial = Some(serial);
+                state.seat.buttons.push(ButtonEvent {
+                    code: button,
+                    pressed: button_state == ButtonState::Pressed,
+                });
+            }
+            wl_pointer::Event::Axis {
+                axis: WEnum::Value(axis),
+                value,
+                ..
+            } => state.seat.scrolls.push(match axis {
+                Axis::HorizontalScroll => ScrollEvent {
+                    horizontal: value,
+                    vertical: 0.0,
+                },
+                _ => ScrollEvent {
+                    horizontal: 0.0,
+                    vertical: value,
+                },
             }),
             _ => {}
         }

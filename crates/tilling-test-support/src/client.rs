@@ -11,13 +11,14 @@ use wayland_client::protocol::wl_shm::WlShm;
 use wayland_client::protocol::wl_surface::WlSurface;
 use wayland_client::{Connection, EventQueue};
 use wayland_protocols::xdg::shell::client::xdg_surface::XdgSurface;
-use wayland_protocols::xdg::shell::client::xdg_toplevel::XdgToplevel;
+use wayland_protocols::xdg::shell::client::xdg_toplevel::{ResizeEdge, XdgToplevel};
 use wayland_protocols::xdg::shell::client::xdg_wm_base::XdgWmBase;
 
 use crate::buffer;
 use crate::error::ClientError;
 use crate::state::{
-    AdvertisedGlobal, ButtonEvent, ClientState, KeyEvent, ToplevelConfigure, ToplevelRecord,
+    AdvertisedGlobal, ButtonEvent, ClientState, KeyEvent, ScrollEvent, ToplevelConfigure,
+    ToplevelRecord,
 };
 
 const DEFAULT_WIDTH: u32 = 640;
@@ -44,6 +45,7 @@ pub struct Client {
     compositor: WlCompositor,
     shm: WlShm,
     wm_base: XdgWmBase,
+    seat: WlSeat,
     toplevels: Vec<Option<Toplevel>>,
 }
 
@@ -67,7 +69,8 @@ impl Client {
         let wm_base = list
             .bind(&handle, 1..=6, ())
             .map_err(bind_error("xdg_wm_base"))?;
-        list.bind::<WlSeat, _, _>(&handle, 1..=9, ())
+        let seat = list
+            .bind(&handle, 1..=9, ())
             .map_err(bind_error("wl_seat"))?;
         let globals = list
             .contents()
@@ -85,6 +88,7 @@ impl Client {
             compositor,
             shm,
             wm_base,
+            seat,
             toplevels: Vec::new(),
         })
     }
@@ -112,6 +116,16 @@ impl Client {
     #[must_use]
     pub fn button_events(&self) -> &[ButtonEvent] {
         &self.state.seat.buttons
+    }
+
+    #[must_use]
+    pub fn button_serial(&self) -> Option<u32> {
+        self.state.seat.button_serial
+    }
+
+    #[must_use]
+    pub fn scroll_events(&self) -> &[ScrollEvent] {
+        &self.state.seat.scrolls
     }
 
     #[must_use]
@@ -165,6 +179,32 @@ impl Client {
             role.unset_fullscreen();
         }
         Ok(())
+    }
+
+    pub fn request_move(&mut self, toplevel: ToplevelId) -> Result<(), ClientError> {
+        let serial = self.button_serial().ok_or(ClientError::NoButtonSerial)?;
+        self.request_move_with(toplevel, serial)
+    }
+
+    pub fn request_move_with(
+        &mut self,
+        toplevel: ToplevelId,
+        serial: u32,
+    ) -> Result<(), ClientError> {
+        self.toplevel(toplevel)?.role._move(&self.seat, serial);
+        self.roundtrip()
+    }
+
+    pub fn request_resize(
+        &mut self,
+        toplevel: ToplevelId,
+        edge: ResizeEdge,
+    ) -> Result<(), ClientError> {
+        let serial = self.button_serial().ok_or(ClientError::NoButtonSerial)?;
+        self.toplevel(toplevel)?
+            .role
+            .resize(&self.seat, serial, edge);
+        self.roundtrip()
     }
 
     pub fn commit(&mut self, toplevel: ToplevelId) -> Result<(), ClientError> {

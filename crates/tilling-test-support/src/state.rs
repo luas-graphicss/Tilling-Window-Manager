@@ -30,6 +30,12 @@ pub struct ButtonEvent {
     pub pressed: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScrollEvent {
+    pub horizontal: f64,
+    pub vertical: f64,
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ProposedState {
     width: u32,
@@ -56,6 +62,8 @@ pub(crate) struct SeatLog {
     pub(crate) pointer_focus: Option<usize>,
     pub(crate) pointer_position: Option<(f64, f64)>,
     pub(crate) buttons: Vec<ButtonEvent>,
+    pub(crate) button_serial: Option<u32>,
+    pub(crate) scrolls: Vec<ScrollEvent>,
 }
 
 #[derive(Debug, Default)]
