@@ -1,3 +1,5 @@
+use tilling_test_support::{DecorationMode, WmCapabilities};
+
 use crate::harness::Harness;
 
 #[test]
@@ -23,5 +25,37 @@ fn only_the_implemented_globals_are_advertised() {
             ("xdg_wm_base", 6),
             ("zxdg_decoration_manager_v1", 1),
         ]
+    );
+}
+
+#[test]
+fn fullscreen_is_the_only_window_management_capability_offered() {
+    let harness = Harness::start();
+    let mut client = harness.connect();
+    let window = client.create_toplevel("org.example.Terminal", "shell");
+
+    client.commit(window).unwrap();
+    client.wait_for_configure(window).unwrap();
+
+    assert_eq!(
+        client.window_management_capabilities(window),
+        Some(&[WmCapabilities::Fullscreen][..])
+    );
+}
+
+#[test]
+fn decoration_is_negotiated_to_the_server_side_whatever_the_client_prefers() {
+    let harness = Harness::start();
+    let mut client = harness.connect();
+    let window = client.create_toplevel("org.example.Terminal", "shell");
+
+    client
+        .request_decoration(window, DecorationMode::ClientSide)
+        .unwrap();
+    client.map(window).unwrap();
+
+    assert_eq!(
+        client.decoration_mode(window),
+        Some(DecorationMode::ServerSide)
     );
 }

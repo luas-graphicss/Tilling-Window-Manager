@@ -6,6 +6,7 @@ use smithay::input::keyboard::{Keycode, XkbConfig};
 use smithay::input::pointer::CursorImageStatus;
 use smithay::input::{Seat, SeatState};
 use smithay::reexports::calloop::{LoopHandle, LoopSignal};
+use smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::WmCapabilities;
 use smithay::reexports::wayland_server::DisplayHandle;
 use smithay::wayland::compositor::CompositorState;
 use smithay::wayland::shell::xdg::XdgShellState;
@@ -79,7 +80,10 @@ impl Compositor {
         } = settings;
         let compositor_state = CompositorState::new::<Self>(&display_handle);
         let shm_state = ShmState::new::<Self>(&display_handle, Vec::new());
-        let xdg_shell_state = XdgShellState::new::<Self>(&display_handle);
+        let xdg_shell_state = XdgShellState::new_with_capabilities::<Self>(
+            &display_handle,
+            [WmCapabilities::Fullscreen],
+        );
         XdgDecorationState::new::<Self>(&display_handle);
         let mut seat_state = SeatState::new();
         let mut seat = seat_state.new_wl_seat(&display_handle, SEAT_NAME);
