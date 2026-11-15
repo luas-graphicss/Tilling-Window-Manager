@@ -96,6 +96,12 @@ pub struct DiagnosticsInfo {
     pub outputs: u32,
     pub workspaces: u32,
     pub windows: u32,
+    pub input_devices: u32,
+    pub frames_presented: u64,
+    pub frames_damaged: u64,
+    pub resident_kib: u64,
+    pub open_descriptors: u32,
+    pub cpu_time_ms: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

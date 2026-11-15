@@ -271,6 +271,12 @@ fn query_replies_survive_a_round_trip() {
             outputs: 1,
             workspaces: 9,
             windows: 3,
+            input_devices: 2,
+            frames_presented: 1200,
+            frames_damaged: 310,
+            resident_kib: 48_212,
+            open_descriptors: 37,
+            cpu_time_ms: 950,
         }),
         Reply::OutputChangePending {
             revision: 3,

@@ -3,6 +3,7 @@ pub(crate) mod instance;
 pub(crate) mod session;
 mod signals;
 mod state;
+mod usage;
 
 use std::time::Duration;
 
@@ -19,6 +20,7 @@ use state::Settings;
 
 pub(crate) use clients::ClientState;
 pub(crate) use state::Compositor;
+pub(crate) use usage::ProcessUsage;
 
 pub(crate) struct Runtime {
     pub(crate) display: Display<Compositor>,

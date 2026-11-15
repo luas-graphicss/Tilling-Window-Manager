@@ -1,3 +1,4 @@
+mod diagnostics;
 mod events;
 mod outputs;
 mod peers;

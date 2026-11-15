@@ -48,9 +48,11 @@ impl InputDevices {
             InputEvent::DeviceAdded { mut device } => {
                 device_settings::apply(&mut device, compositor.config.input());
                 self.connected.push(device);
+                compositor.input_devices = self.connected.len();
             }
             InputEvent::DeviceRemoved { device } => {
                 self.connected.retain(|known| *known != device);
+                compositor.input_devices = self.connected.len();
                 self.release_lost_capabilities(compositor);
             }
             other => {

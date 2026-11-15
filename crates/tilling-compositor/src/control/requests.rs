@@ -44,7 +44,7 @@ impl Compositor {
             Call::GetWorkspaces => Ok(Reply::Workspaces(views::workspaces(&self.desktop))),
             Call::GetWindows => Ok(Reply::Windows(views::windows(&self.desktop))),
             Call::GetConfig => Ok(Reply::Config(self.config_info())),
-            Call::GetDiagnostics => Ok(Reply::Diagnostics(views::diagnostics(&self.desktop))),
+            Call::GetDiagnostics => Ok(Reply::Diagnostics(self.diagnostics())),
             Call::FocusWindow { window } => {
                 let window = resources::window(&self.desktop, window)?;
                 self.accept(Command::FocusWindow { window })
