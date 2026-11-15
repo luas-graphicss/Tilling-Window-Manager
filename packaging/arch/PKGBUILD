@@ -1,0 +1,23 @@
+pkgname=tilling
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Tiling Wayland compositor'
+arch=('x86_64')
+url='https://github.com/luas-graphicss/Tilling-Window-Manager'
+license=('GPL-3.0-only')
+depends=('gcc-libs' 'glibc' 'libglvnd' 'libinput' 'libxkbcommon' 'mesa' 'seatd' 'systemd-libs')
+optdepends=('foot: terminal of the default configuration'
+            'wayland: nested backend')
+makedepends=('cargo' 'pkgconf')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "Tilling-Window-Manager-$pkgver"
+  cargo xtask package --target x86_64-unknown-linux-gnu --output "$srcdir/dist"
+}
+
+package() {
+  tar --extract --gzip --file "$srcdir/dist/$pkgname-$pkgver-x86_64-unknown-linux-gnu.tar.gz" \
+    --directory "$pkgdir" --strip-components 1 --no-same-owner
+}
