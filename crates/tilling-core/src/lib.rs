@@ -1,1 +1,20 @@
+mod command;
+mod desktop;
+mod focus;
 pub mod geometry;
+mod identity;
+mod invariant;
+pub mod layout;
+mod output;
+mod transition;
+mod window;
+mod workspace;
+
+pub use command::{Command, ModeChange};
+pub use desktop::DesktopState;
+pub use identity::{CapacityExhausted, OutputId, WindowId, WorkspaceId};
+pub use invariant::InvariantViolation;
+pub use output::Output;
+pub use transition::{Effect, Transition, TransitionError};
+pub use window::{RestoreMode, Window, WindowMetadata, WindowMode};
+pub use workspace::Workspace;
