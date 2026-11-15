@@ -1,0 +1,29 @@
+[package]
+name = "tilling-compositor"
+description = "Wayland compositor runtime of Tilling built on Smithay"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = ["nested"]
+nested = ["smithay/backend_winit", "smithay/renderer_gl"]
+
+[dependencies]
+calloop = { workspace = true }
+rustix = { workspace = true }
+smithay = { workspace = true, features = ["desktop", "wayland_frontend"] }
+thiserror = { workspace = true }
+tilling-config = { workspace = true }
+tilling-core = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tilling-test-support = { workspace = true }
+
+[lints]
+workspace = true
