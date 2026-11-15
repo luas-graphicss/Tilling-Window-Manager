@@ -15,11 +15,15 @@ impl Compositor {
         };
         managed.window.on_commit();
         let lifecycle = managed.lifecycle;
+        let attached = has_buffer(root);
+        if attached && !managed.toplevel.ensure_configured() {
+            return;
+        }
         if !managed.toplevel.is_initial_configure_sent() {
             self.send_initial_configure(root);
             return;
         }
-        match (lifecycle, has_buffer(root)) {
+        match (lifecycle, attached) {
             (Lifecycle::Unmapped, true) => self.map_window(root),
             (Lifecycle::Mapped(window), false) => self.unmap_window(root, window),
             (Lifecycle::Mapped(window), true) => self.transactions.commit(window),

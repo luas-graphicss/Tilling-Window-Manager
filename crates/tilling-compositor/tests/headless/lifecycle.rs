@@ -151,3 +151,20 @@ fn buffer_larger_than_its_pool_disconnects_only_the_client_that_sent_it() {
     assert_eq!(snapshot.mapped_windows, 1);
     assert_eq!(snapshot.scene.windows()[0].content.width(), 1260);
 }
+
+#[test]
+fn buffer_committed_before_the_first_configure_is_refused() {
+    let harness = Harness::start();
+    let mut client = harness.connect();
+    let window = client.create_toplevel("org.example.Viewer", "too early");
+
+    client.attach(window, 640, 480).unwrap();
+    client.commit(window).unwrap();
+    let rejection = client.roundtrip().unwrap_err();
+    harness.wait_until("the hasty client is gone", |snapshot| {
+        snapshot.toplevels == 0
+    });
+
+    assert_eq!(rejection.protocol_error(), Some(("xdg_surface", 1)));
+    assert_eq!(harness.snapshot().mapped_windows, 0);
+}
