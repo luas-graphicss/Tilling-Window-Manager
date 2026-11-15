@@ -1,3 +1,5 @@
+mod cargo;
+mod checks;
 mod inventory;
 mod operator;
 mod runner;
@@ -10,7 +12,8 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 
-use crate::runner::Verdict;
+use crate::checks::{CheckError, Profile};
+use crate::runner::{RunError, Verdict};
 use crate::scenario::Scenario;
 
 const BROKEN_EXIT_CODE: u8 = 2;
@@ -35,13 +38,28 @@ enum Task {
         )]
         operator: bool,
     },
+    #[command(about = "Run the checks a change has to pass")]
+    Check {
+        #[arg(
+            long,
+            value_enum,
+            default_value_t = Profile::Quick,
+            help = "Quick checks for a change, or every check a release needs"
+        )]
+        profile: Profile,
+    },
+}
+
+#[derive(Debug, thiserror::Error)]
+enum TaskError {
+    #[error(transparent)]
+    Scenario(#[from] RunError),
+    #[error(transparent)]
+    Check(#[from] CheckError),
 }
 
 fn main() -> ExitCode {
-    let Task::Scenario { name, operator } = Arguments::parse().task;
-    let mut answers = io::stdin().lock();
-    let operator = operator.then_some(&mut answers as &mut dyn BufRead);
-    match runner::run(name, operator, &mut io::stdout().lock()) {
+    match run(Arguments::parse().task) {
         Ok(Verdict::Passed) => ExitCode::SUCCESS,
         Ok(Verdict::Incomplete) => ExitCode::from(INCOMPLETE_EXIT_CODE),
         Ok(Verdict::Failed) => ExitCode::FAILURE,
@@ -49,6 +67,18 @@ fn main() -> ExitCode {
             eprintln!("xtask: {}", describe(&failure));
             ExitCode::from(BROKEN_EXIT_CODE)
         }
+    }
+}
+
+fn run(task: Task) -> Result<Verdict, TaskError> {
+    let mut report = io::stdout().lock();
+    match task {
+        Task::Scenario { name, operator } => {
+            let mut answers = io::stdin().lock();
+            let operator = operator.then_some(&mut answers as &mut dyn BufRead);
+            Ok(runner::run(name, operator, &mut report)?)
+        }
+        Task::Check { profile } => Ok(checks::run(profile, &mut report)?),
     }
 }
 
