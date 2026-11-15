@@ -1,5 +1,5 @@
 use crate::diagnostics::Report;
-use crate::limits::{MAX_NAME_BYTES, MAX_WORKSPACES};
+use crate::limits::{MAX_KEY_NAME_BYTES, MAX_NAME_BYTES, MAX_WORKSPACES};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum NameError {
@@ -22,6 +22,14 @@ pub(crate) fn check_name(name: &str) -> Result<(), NameError> {
         return Err(NameError::ControlCharacter);
     }
     Ok(())
+}
+
+pub(crate) fn is_identifier(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= MAX_KEY_NAME_BYTES
+        && name.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'-' | b'_')
+        })
 }
 
 pub(crate) fn validate_workspaces(names: Vec<String>, report: &mut Report) -> Vec<String> {

@@ -11,7 +11,6 @@ use super::refusal::Refusal;
 use super::{resources, views};
 use crate::runtime::Compositor;
 
-const LOCK_UNAVAILABLE: &str = "session locking is not available";
 const EVENTS_NOT_NEGOTIATED: &str = "the events capability was not negotiated";
 const NOWHERE_TO_FLOAT: &str = "window is not on a workspace shown by an output";
 
@@ -75,7 +74,10 @@ impl Compositor {
                     .map_err(|error| Refusal::invalid_because(&error))?;
                 Ok(self.accepted())
             }
-            Call::RequestLock => Err(Refusal::NotPermitted(LOCK_UNAVAILABLE.to_owned())),
+            Call::RequestLock => {
+                self.request_lock()?;
+                Ok(self.accepted())
+            }
             Call::Quit => {
                 self.stop();
                 Ok(self.accepted())

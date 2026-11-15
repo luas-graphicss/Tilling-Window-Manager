@@ -6,7 +6,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use self::action::References;
 use crate::diagnostics::Report;
-use crate::limits::{MAX_BINDINGS, MAX_KEY_NAME_BYTES};
+use crate::limits::MAX_BINDINGS;
+use crate::names::is_identifier;
 use crate::schema::RawBinding;
 
 pub use action::Action;
@@ -45,7 +46,7 @@ pub(crate) fn validate(
     let mut first_use: BTreeMap<(String, KeyChord), usize> = BTreeMap::new();
     let mut bindings = Vec::new();
     for (index, entry) in raw.into_iter().take(MAX_BINDINGS).enumerate() {
-        if !is_mode_name(&entry.mode) {
+        if !is_identifier(&entry.mode) {
             report.reject(
                 format!("bindings[{index}].mode"),
                 "must use lowercase letters, digits, `-` or `_`",
@@ -82,12 +83,4 @@ pub(crate) fn validate(
         }
     }
     bindings
-}
-
-fn is_mode_name(mode: &str) -> bool {
-    !mode.is_empty()
-        && mode.len() <= MAX_KEY_NAME_BYTES
-        && mode.bytes().all(|byte| {
-            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'-' | b'_')
-        })
 }

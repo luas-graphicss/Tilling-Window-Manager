@@ -17,6 +17,8 @@ const CONTROL_TIMEOUT: Duration = Duration::from_secs(5);
 const WAIT_LIMIT: Duration = Duration::from_secs(5);
 const WAIT_STEP: Duration = Duration::from_millis(2);
 const IDLE_WINDOW: Duration = Duration::from_millis(80);
+const HELPER_RESTART_DELAY: Duration = Duration::from_millis(10);
+const CONFIG_FILE: &str = "config.toml";
 
 pub(crate) struct Harness {
     session: Session,
@@ -38,6 +40,23 @@ impl Harness {
         let config = tilling_config::parse(text)
             .unwrap_or_else(|error| panic!("test configuration was rejected: {error}"));
         Self::launch(config, |_| {})
+    }
+
+    pub(crate) fn start_from_file(text: &str) -> Self {
+        let config = tilling_config::parse(text)
+            .unwrap_or_else(|error| panic!("test configuration was rejected: {error}"));
+        Self::launch(config, |options| {
+            let path = options.runtime_dir.join(CONFIG_FILE);
+            std::fs::write(&path, text)
+                .unwrap_or_else(|error| panic!("test configuration was not written: {error}"));
+            options.config_source = ConfigSource::File(path);
+            options.helper_restart_delay = HELPER_RESTART_DELAY;
+        })
+    }
+
+    pub(crate) fn rewrite_config(&self, text: &str) {
+        std::fs::write(self.runtime_dir().join(CONFIG_FILE), text)
+            .unwrap_or_else(|error| panic!("test configuration was not rewritten: {error}"));
     }
 
     fn launch(config: ValidatedConfig, adjust: impl FnOnce(&mut Options)) -> Self {

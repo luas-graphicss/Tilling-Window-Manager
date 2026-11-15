@@ -27,6 +27,7 @@ pub enum Action {
     CycleLayout,
     EnterMode(String),
     ReloadConfig,
+    Lock,
     Quit,
 }
 
@@ -84,6 +85,7 @@ pub(crate) fn validate(raw: RawAction, references: &References<'_>) -> Result<Ac
         }
         RawAction::EnterMode(mode) => Err(ActionError::UnknownMode(mode)),
         RawAction::ReloadConfig => Ok(Action::ReloadConfig),
+        RawAction::Lock => Ok(Action::Lock),
         RawAction::Quit => Ok(Action::Quit),
     }
 }

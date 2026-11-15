@@ -34,6 +34,7 @@ pub struct SessionSnapshot {
     pub frames: FrameStats,
     pub layers: usize,
     pub locked: bool,
+    pub helpers: usize,
 }
 
 #[derive(Debug)]

@@ -4,6 +4,7 @@ mod desktop;
 mod error;
 mod focus;
 mod geometry;
+mod helpers;
 mod idle;
 mod input;
 mod layers;
@@ -19,6 +20,7 @@ mod shell;
 mod transaction;
 
 pub use error::CompositorError;
+pub use helpers::SessionServices;
 pub use input::SyntheticInput;
 pub use options::{BackendKind, Options, VirtualOutput};
 pub use render::FrameStats;

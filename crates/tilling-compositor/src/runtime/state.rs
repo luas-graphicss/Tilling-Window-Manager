@@ -23,6 +23,7 @@ use super::{Departures, Runtime};
 use crate::control::ControlPeers;
 use crate::desktop::initial_desktop;
 use crate::error::CompositorError;
+use crate::helpers::Supervisor;
 use crate::idle::IdleTracker;
 use crate::input::{BindingTable, InputSerials, Launcher};
 use crate::lock::SessionLock;
@@ -44,6 +45,7 @@ pub(crate) struct Settings {
     pub(crate) transaction_timeout: Duration,
     pub(crate) output_confirmation: Duration,
     pub(crate) launcher: Launcher,
+    pub(crate) helpers: Supervisor,
 }
 
 pub(crate) struct Compositor {
@@ -77,6 +79,7 @@ pub(crate) struct Compositor {
     #[cfg(feature = "drm")]
     pub(crate) dmabuf: DmabufImports,
     pub(crate) launcher: Launcher,
+    pub(crate) helpers: Supervisor,
     pub(crate) desktop: DesktopState,
     pub(crate) windows: WindowRegistry,
     pub(crate) outputs: OutputRegistry,
@@ -103,6 +106,7 @@ impl Compositor {
             transaction_timeout,
             output_confirmation,
             launcher,
+            helpers,
         } = settings;
         let compositor_state = CompositorState::new::<Self>(&display_handle);
         let shm_state = ShmState::new::<Self>(&display_handle, Vec::new());
@@ -162,6 +166,7 @@ impl Compositor {
             #[cfg(feature = "drm")]
             dmabuf: DmabufImports::default(),
             launcher,
+            helpers,
             desktop,
             windows: WindowRegistry::default(),
             outputs: OutputRegistry::default(),

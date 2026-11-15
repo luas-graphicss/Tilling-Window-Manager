@@ -13,11 +13,14 @@ pub(crate) struct RawConfig {
     layout: Option<RawLayout>,
     input: Option<RawInput>,
     applications: Option<RawApplications>,
+    session: Option<RawSession>,
     bindings: Option<Vec<RawBinding>>,
     #[serde(default)]
     rules: Vec<RawRule>,
     #[serde(default)]
     outputs: Vec<RawOutput>,
+    #[serde(default)]
+    helpers: Vec<RawHelper>,
 }
 
 #[derive(Debug)]
@@ -26,9 +29,11 @@ pub(crate) struct Sections {
     pub(crate) layout: RawLayout,
     pub(crate) input: RawInput,
     pub(crate) applications: RawApplications,
+    pub(crate) session: RawSession,
     pub(crate) bindings: Vec<RawBinding>,
     pub(crate) rules: Vec<RawRule>,
     pub(crate) outputs: Vec<RawOutput>,
+    pub(crate) helpers: Vec<RawHelper>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -99,6 +104,39 @@ pub(crate) struct RawApplications {
     pub(crate) terminal: Vec<String>,
 }
 
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RawSession {
+    pub(crate) locker: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RawHelper {
+    pub(crate) name: String,
+    pub(crate) command: Vec<String>,
+    #[serde(default)]
+    pub(crate) capabilities: Vec<RawCapability>,
+    #[serde(default)]
+    pub(crate) restart: RawRestart,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum RawCapability {
+    DataControl,
+    InputMethod,
+    VirtualKeyboard,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum RawRestart {
+    #[default]
+    Never,
+    OnFailure,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RawBinding {
@@ -130,6 +168,7 @@ pub(crate) enum RawAction {
     CycleLayout,
     EnterMode(String),
     ReloadConfig,
+    Lock,
     Quit,
 }
 
@@ -217,9 +256,11 @@ impl RawConfig {
             layout: self.layout.or(defaults.layout)?,
             input: self.input.or(defaults.input)?,
             applications: self.applications.or(defaults.applications)?,
+            session: self.session.or(defaults.session).unwrap_or_default(),
             bindings: self.bindings.or(defaults.bindings)?,
             rules: self.rules,
             outputs: self.outputs,
+            helpers: self.helpers,
         })
     }
 }

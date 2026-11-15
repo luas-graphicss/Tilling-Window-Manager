@@ -147,6 +147,7 @@ impl Compositor {
             frames: self.frames,
             layers: self.layer_count(),
             locked: self.lock.is_engaged(),
+            helpers: self.helpers.running(),
         }
     }
 

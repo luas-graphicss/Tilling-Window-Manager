@@ -83,10 +83,19 @@ impl Client {
         Self::from_stream(stream)
     }
 
+    pub fn connect_to_environment() -> Result<Self, ClientError> {
+        let connection = Connection::connect_to_env().map_err(ClientError::Handshake)?;
+        Self::from_connection(&connection)
+    }
+
     pub fn from_stream(stream: UnixStream) -> Result<Self, ClientError> {
         let connection = Connection::from_socket(stream).map_err(ClientError::Handshake)?;
+        Self::from_connection(&connection)
+    }
+
+    fn from_connection(connection: &Connection) -> Result<Self, ClientError> {
         let (list, queue) =
-            registry_queue_init::<ClientState>(&connection).map_err(ClientError::Globals)?;
+            registry_queue_init::<ClientState>(connection).map_err(ClientError::Globals)?;
         let handle = queue.handle();
         let bind_error = |interface| move |source| ClientError::Bind { interface, source };
         let compositor = list
