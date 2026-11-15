@@ -20,7 +20,11 @@ pub(crate) fn initial_desktop(config: &ValidatedConfig) -> Result<DesktopState, 
         .workspaces()
         .split_first()
         .ok_or(CompositorError::NoWorkspaces)?;
+    let layout = config.layout().default;
     let mut desktop = DesktopState::new(first.as_str());
+    let workspace = desktop.active_workspace();
+    desktop.apply(Command::SetDefaultLayout { layout })?;
+    desktop.apply(Command::SetLayout { workspace, layout })?;
     for name in rest {
         desktop.apply(Command::CreateWorkspace { name: name.clone() })?;
     }

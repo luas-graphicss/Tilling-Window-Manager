@@ -4,6 +4,7 @@ use tilling_config::{
 };
 use tilling_core::WindowMetadata;
 use tilling_core::geometry::Scale;
+use tilling_core::layout::LayoutKind;
 
 fn valid(text: &str) -> ValidatedConfig {
     parse(text).unwrap_or_else(|error| panic!("configuration was rejected: {error}"))
@@ -83,6 +84,51 @@ action = { switch-workspace = "web" }
         config.bindings()[0].action,
         Action::SwitchWorkspace("web".into())
     );
+}
+
+#[test]
+fn layout_section_chooses_the_layout_of_new_workspaces() {
+    let chosen = valid(
+        "schema_version = 1\n\n[layout]\ninner_gap = 2\nouter_gap = 2\ndefault = \"master-stack\"\n",
+    );
+    let omitted = valid("schema_version = 1\n\n[layout]\ninner_gap = 2\nouter_gap = 2\n");
+
+    assert_eq!(chosen.layout().default, LayoutKind::MasterStack);
+    assert_eq!(omitted.layout().default, LayoutKind::Bsp);
+}
+
+#[test]
+fn layout_bindings_name_a_layout_or_cycle_through_them() {
+    let config = valid(
+        r#"
+schema_version = 1
+
+[[bindings]]
+keys = "Super+m"
+action = { set-layout = "monocle" }
+
+[[bindings]]
+keys = "Super+space"
+action = "cycle-layout"
+"#,
+    );
+
+    assert_eq!(
+        config.bindings()[0].action,
+        Action::SetLayout(LayoutKind::Monocle)
+    );
+    assert_eq!(config.bindings()[1].action, Action::CycleLayout);
+}
+
+#[test]
+fn unknown_layout_names_are_rejected_where_they_appear() {
+    let text =
+        "schema_version = 1\n\n[layout]\ninner_gap = 1\nouter_gap = 1\ndefault = \"spiral\"\n";
+
+    let (line, message) = syntax_error(text);
+
+    assert_eq!(line, 6);
+    assert!(message.contains("spiral"), "{message}");
 }
 
 #[test]

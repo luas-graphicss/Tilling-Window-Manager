@@ -5,6 +5,7 @@ mod globals;
 mod harness;
 mod keyboard;
 mod keys;
+mod layouts;
 mod lifecycle;
 mod output_changes;
 mod outputs;

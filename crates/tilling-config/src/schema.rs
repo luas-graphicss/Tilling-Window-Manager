@@ -36,6 +36,17 @@ pub(crate) struct Sections {
 pub(crate) struct RawLayout {
     pub(crate) inner_gap: u32,
     pub(crate) outer_gap: u32,
+    #[serde(default)]
+    pub(crate) default: RawLayoutKind,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum RawLayoutKind {
+    #[default]
+    Bsp,
+    MasterStack,
+    Monocle,
 }
 
 #[derive(Debug, Deserialize)]
@@ -111,6 +122,8 @@ pub(crate) enum RawAction {
     ToggleFloating,
     ToggleSplit,
     Resize(i16),
+    SetLayout(RawLayoutKind),
+    CycleLayout,
     EnterMode(String),
     ReloadConfig,
     Quit,

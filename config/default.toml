@@ -5,6 +5,7 @@ workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
 [layout]
 inner_gap = 8
 outer_gap = 8
+default = "bsp"
 
 [input.keyboard]
 layout = "us"
@@ -74,6 +75,22 @@ action = "toggle-floating"
 [[bindings]]
 keys = "Super+e"
 action = "toggle-split"
+
+[[bindings]]
+keys = "Super+space"
+action = "cycle-layout"
+
+[[bindings]]
+keys = "Super+b"
+action = { set-layout = "bsp" }
+
+[[bindings]]
+keys = "Super+t"
+action = { set-layout = "master-stack" }
+
+[[bindings]]
+keys = "Super+m"
+action = { set-layout = "monocle" }
 
 [[bindings]]
 keys = "Super+r"

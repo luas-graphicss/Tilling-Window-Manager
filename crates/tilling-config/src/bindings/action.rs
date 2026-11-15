@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use tilling_core::layout::Direction;
+use tilling_core::layout::{Direction, LayoutKind};
 
 use crate::applications::{CommandLine, CommandLineError};
 use crate::limits::MAX_RESIZE_STEP;
@@ -19,6 +19,8 @@ pub enum Action {
     ToggleFloating,
     ToggleSplit,
     Resize(i16),
+    SetLayout(LayoutKind),
+    CycleLayout,
     EnterMode(String),
     ReloadConfig,
     Quit,
@@ -67,6 +69,8 @@ pub(crate) fn validate(raw: RawAction, references: &References<'_>) -> Result<Ac
             Err(ActionError::ResizeOutOfRange)
         }
         RawAction::Resize(step) => Ok(Action::Resize(step)),
+        RawAction::SetLayout(layout) => Ok(Action::SetLayout(layout.into())),
+        RawAction::CycleLayout => Ok(Action::CycleLayout),
         RawAction::EnterMode(mode) if references.modes.contains(&mode) => {
             Ok(Action::EnterMode(mode))
         }
