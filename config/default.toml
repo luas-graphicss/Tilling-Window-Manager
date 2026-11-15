@@ -65,12 +65,52 @@ keys = "Super+Shift+l"
 action = { move = "right" }
 
 [[bindings]]
+keys = "Super+Ctrl+h"
+action = { focus-output = "left" }
+
+[[bindings]]
+keys = "Super+Ctrl+j"
+action = { focus-output = "down" }
+
+[[bindings]]
+keys = "Super+Ctrl+k"
+action = { focus-output = "up" }
+
+[[bindings]]
+keys = "Super+Ctrl+l"
+action = { focus-output = "right" }
+
+[[bindings]]
+keys = "Super+Ctrl+Shift+h"
+action = { move-to-output = "left" }
+
+[[bindings]]
+keys = "Super+Ctrl+Shift+j"
+action = { move-to-output = "down" }
+
+[[bindings]]
+keys = "Super+Ctrl+Shift+k"
+action = { move-to-output = "up" }
+
+[[bindings]]
+keys = "Super+Ctrl+Shift+l"
+action = { move-to-output = "right" }
+
+[[bindings]]
 keys = "Super+f"
 action = "toggle-fullscreen"
 
 [[bindings]]
 keys = "Super+Shift+space"
 action = "toggle-floating"
+
+[[bindings]]
+keys = "Super+Shift+minus"
+action = "move-to-scratchpad"
+
+[[bindings]]
+keys = "Super+minus"
+action = "toggle-scratchpad"
 
 [[bindings]]
 keys = "Super+e"

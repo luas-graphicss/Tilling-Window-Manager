@@ -12,6 +12,7 @@ mod outputs;
 mod pointer;
 mod popups;
 mod scale;
+mod scratchpad;
 mod subsurfaces;
 mod tiling;
 mod transactions;

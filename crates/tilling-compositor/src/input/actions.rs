@@ -1,6 +1,5 @@
 use smithay::input::keyboard::XkbConfig;
 use tilling_config::{Action, CommandLine, ConfigError, DEFAULT_MODE, ValidatedConfig};
-use tilling_core::layout::LayoutKind;
 use tilling_core::{Command, ModeChange, WindowId, WindowMode};
 
 use super::BindingTable;
@@ -32,8 +31,14 @@ impl Compositor {
                     });
                 }
             }
+            Action::FocusOutput(direction) => self.run(Command::FocusOutput { direction }),
+            Action::MoveToOutput(direction) => {
+                self.run_on_focused(|window| Command::MoveWindowToOutput { window, direction });
+            }
             Action::ToggleFullscreen => self.toggle_fullscreen(),
             Action::ToggleFloating => self.toggle_floating(),
+            Action::MoveToScratchpad => self.stash_focused(),
+            Action::ToggleScratchpad => self.run(Command::ToggleScratchpad),
             Action::ToggleSplit => self.run_on_focused(|window| Command::ToggleSplit { window }),
             Action::Resize(delta) => {
                 self.run_on_focused(|window| Command::ResizeSplit { window, delta });
@@ -106,18 +111,6 @@ impl Compositor {
         }
     }
 
-    fn set_active_layout(&mut self, layout: LayoutKind) {
-        let workspace = self.desktop.active_workspace();
-        self.run(Command::SetLayout { workspace, layout });
-    }
-
-    fn cycle_layout(&mut self) {
-        let active = self.desktop.workspace(self.desktop.active_workspace());
-        if let Some(current) = active.map(|workspace| workspace.layout().kind()) {
-            self.set_active_layout(following(current));
-        }
-    }
-
     pub(crate) fn reload(&mut self) -> Result<(), ConfigError> {
         let config = tilling_config::load(&self.config_source)?;
         self.adopt_config(config);
@@ -166,13 +159,5 @@ impl Compositor {
             i32::try_from(settings.repeat_rate).unwrap_or(i32::MAX),
             i32::try_from(settings.repeat_delay_ms).unwrap_or(i32::MAX),
         );
-    }
-}
-
-fn following(layout: LayoutKind) -> LayoutKind {
-    match layout {
-        LayoutKind::Bsp => LayoutKind::MasterStack,
-        LayoutKind::MasterStack => LayoutKind::Monocle,
-        LayoutKind::Monocle => LayoutKind::Bsp,
     }
 }

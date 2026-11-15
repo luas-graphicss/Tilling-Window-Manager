@@ -4,7 +4,7 @@ use tilling_config::{
 };
 use tilling_core::WindowMetadata;
 use tilling_core::geometry::Scale;
-use tilling_core::layout::LayoutKind;
+use tilling_core::layout::{Direction, LayoutKind};
 
 fn valid(text: &str) -> ValidatedConfig {
     parse(text).unwrap_or_else(|error| panic!("configuration was rejected: {error}"))
@@ -118,6 +118,46 @@ action = "cycle-layout"
         Action::SetLayout(LayoutKind::Monocle)
     );
     assert_eq!(config.bindings()[1].action, Action::CycleLayout);
+}
+
+#[test]
+fn scratchpad_and_output_bindings_are_understood() {
+    let config = valid(
+        r#"
+schema_version = 1
+
+[[bindings]]
+keys = "Super+minus"
+action = "toggle-scratchpad"
+
+[[bindings]]
+keys = "Super+Shift+minus"
+action = "move-to-scratchpad"
+
+[[bindings]]
+keys = "Super+Ctrl+l"
+action = { focus-output = "right" }
+
+[[bindings]]
+keys = "Super+Ctrl+Shift+h"
+action = { move-to-output = "left" }
+"#,
+    );
+    let actions: Vec<&Action> = config
+        .bindings()
+        .iter()
+        .map(|binding| &binding.action)
+        .collect();
+
+    assert_eq!(
+        actions,
+        [
+            &Action::ToggleScratchpad,
+            &Action::MoveToScratchpad,
+            &Action::FocusOutput(Direction::Right),
+            &Action::MoveToOutput(Direction::Left),
+        ]
+    );
 }
 
 #[test]
