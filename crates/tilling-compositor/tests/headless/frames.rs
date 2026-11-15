@@ -40,6 +40,26 @@ fn commit_without_new_content_is_presented_without_damage() {
 }
 
 #[test]
+fn replaced_buffer_is_released_to_the_client() {
+    let harness = Harness::start();
+    let mut client = harness.connect();
+    let window = client.create_toplevel("org.example.Terminal", "shell");
+    client.map(window).unwrap();
+    let content = harness.published(1).scene.windows()[0].content;
+    harness.idle_frames();
+    client.roundtrip().unwrap();
+    let released_before = client.released_buffers();
+
+    client
+        .replace_buffer(window, content.width(), content.height())
+        .unwrap();
+    harness.idle_frames();
+    client.roundtrip().unwrap();
+
+    assert_eq!(client.released_buffers(), released_before + 1);
+}
+
+#[test]
 fn new_content_damages_only_the_window_that_committed_it() {
     let harness = Harness::start();
     let mut client = harness.connect();
