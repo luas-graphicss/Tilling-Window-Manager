@@ -1,0 +1,170 @@
+schema_version = 1
+
+workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+
+[layout]
+inner_gap = 8
+outer_gap = 8
+
+[input.keyboard]
+layout = "us"
+repeat_rate = 25
+repeat_delay_ms = 600
+
+[input.pointer]
+natural_scroll = false
+acceleration = 0.0
+
+[applications]
+terminal = ["foot"]
+
+[[bindings]]
+keys = "Super+Return"
+action = "open-terminal"
+
+[[bindings]]
+keys = "Super+Shift+q"
+action = "close-window"
+
+[[bindings]]
+keys = "Super+h"
+action = { focus = "left" }
+
+[[bindings]]
+keys = "Super+j"
+action = { focus = "down" }
+
+[[bindings]]
+keys = "Super+k"
+action = { focus = "up" }
+
+[[bindings]]
+keys = "Super+l"
+action = { focus = "right" }
+
+[[bindings]]
+keys = "Super+Shift+h"
+action = { move = "left" }
+
+[[bindings]]
+keys = "Super+Shift+j"
+action = { move = "down" }
+
+[[bindings]]
+keys = "Super+Shift+k"
+action = { move = "up" }
+
+[[bindings]]
+keys = "Super+Shift+l"
+action = { move = "right" }
+
+[[bindings]]
+keys = "Super+f"
+action = "toggle-fullscreen"
+
+[[bindings]]
+keys = "Super+Shift+space"
+action = "toggle-floating"
+
+[[bindings]]
+keys = "Super+e"
+action = "toggle-split"
+
+[[bindings]]
+keys = "Super+r"
+action = { enter-mode = "resize" }
+
+[[bindings]]
+mode = "resize"
+keys = "h"
+action = { resize = -500 }
+
+[[bindings]]
+mode = "resize"
+keys = "l"
+action = { resize = 500 }
+
+[[bindings]]
+mode = "resize"
+keys = "Escape"
+action = { enter-mode = "default" }
+
+[[bindings]]
+keys = "Super+1"
+action = { switch-workspace = "1" }
+
+[[bindings]]
+keys = "Super+2"
+action = { switch-workspace = "2" }
+
+[[bindings]]
+keys = "Super+3"
+action = { switch-workspace = "3" }
+
+[[bindings]]
+keys = "Super+4"
+action = { switch-workspace = "4" }
+
+[[bindings]]
+keys = "Super+5"
+action = { switch-workspace = "5" }
+
+[[bindings]]
+keys = "Super+6"
+action = { switch-workspace = "6" }
+
+[[bindings]]
+keys = "Super+7"
+action = { switch-workspace = "7" }
+
+[[bindings]]
+keys = "Super+8"
+action = { switch-workspace = "8" }
+
+[[bindings]]
+keys = "Super+9"
+action = { switch-workspace = "9" }
+
+[[bindings]]
+keys = "Super+Shift+1"
+action = { move-to-workspace = "1" }
+
+[[bindings]]
+keys = "Super+Shift+2"
+action = { move-to-workspace = "2" }
+
+[[bindings]]
+keys = "Super+Shift+3"
+action = { move-to-workspace = "3" }
+
+[[bindings]]
+keys = "Super+Shift+4"
+action = { move-to-workspace = "4" }
+
+[[bindings]]
+keys = "Super+Shift+5"
+action = { move-to-workspace = "5" }
+
+[[bindings]]
+keys = "Super+Shift+6"
+action = { move-to-workspace = "6" }
+
+[[bindings]]
+keys = "Super+Shift+7"
+action = { move-to-workspace = "7" }
+
+[[bindings]]
+keys = "Super+Shift+8"
+action = { move-to-workspace = "8" }
+
+[[bindings]]
+keys = "Super+Shift+9"
+action = { move-to-workspace = "9" }
+
+[[bindings]]
+keys = "Super+Shift+c"
+action = "reload-config"
+
+[[bindings]]
+keys = "Super+Shift+e"
+action = "quit"
