@@ -8,7 +8,9 @@ Use "Report a vulnerability" in the Security tab of the repository. Do not open 
 
 ## What is not protected
 
-There is no session lock. `tillingctl lock` is refused, and anyone at the keyboard reaches every window. Do not leave a machine unattended in a Tilling session.
+The session lock has never run on real hardware or with a real locker. The tests lock the headless backend with a stand-in program. Until a run of `cargo xtask scenario session-lock-failures --operator` is recorded in [docs/hardware](../hardware/README.md), do not rely on it to protect an unattended machine.
+
+Screen capture is not implemented, so nothing can record the screen through the compositor. X11 applications cannot run; when XWayland is integrated they will not be isolated from each other the way Wayland clients are.
 
 Tilling has not been reviewed by anyone outside the project, and the hardware backend has no recorded run. Treat everything below as the intended behaviour with the tests that pin it, not as a guarantee.
 
@@ -16,12 +18,31 @@ Tilling has not been reviewed by anyone outside the project, and the hardware ba
 
 A client is any program that connects to the Wayland socket of the session. It is not trusted with anything beyond its own windows.
 
-- The compositor advertises the globals listed in [docs/protocols](../protocols/README.md) and nothing else. None of them lets a client read the contents of another client, capture the screen, read the clipboard or inject input. `globals::only_the_implemented_globals_are_advertised` fails when a global is added without being listed.
-- Keyboard input goes to the focused window only. A client cannot take the focus by asking; there is no activation protocol.
+- The compositor advertises the globals listed in [docs/protocols](../protocols/README.md) and nothing else. None of those on the public socket lets a client read the windows of another client, capture the screen or inject input. `globals::only_the_implemented_globals_are_advertised` fails when a global is added without being listed.
+- The clipboard and the primary selection are offered to the client that holds the keyboard, and only that client can replace them. A client in the background can neither read nor change them.
+- Keyboard input goes to the focused window only. A client cannot take the focus by asking: an activation token moves the keyboard only when the client that requested it held the keyboard and named a real key press or click, and it works once.
+- A pointer lock ends when its window loses the keyboard.
+- Layer shell is open to every client, as it is in most compositors that offer it. A client can put a surface over the windows and, by asking for the keyboard exclusively the way a launcher does, receive what is typed until it closes. Start only programs you trust; this is not a boundary Tilling enforces yet.
 - A client that breaks a protocol is disconnected alone. The headless tests cover the errors a client can trigger for each global.
 - A client that stops answering does not hold the others: a layout change waits 200 ms for slow clients and then goes on without them.
 
-Because clipboard, layer shell, input methods and capture are not implemented, the question of which clients may use them is still open. They must not be added as globals every client can bind.
+## Helpers and their permissions
+
+Four protocols give a program power over the whole session: locking it, reading and replacing the clipboard at any time, feeding text as an input method and typing as a keyboard. None of them is on the public socket (`privileges::the_public_socket_offers_no_privileged_global`).
+
+A program receives one only when the compositor starts it: the locker named in `session.locker` gets the session lock, and a `[[helpers]]` entry gets what its `capabilities` list names. The compositor opens a connection for that program alone and hands it over as an inherited descriptor in `WAYLAND_SOCKET`. Nothing is granted by the name of a process, and a program that connects to the public socket by itself is an ordinary client (`privileges::a_helper_without_capabilities_is_an_ordinary_client`). The permissions come from the configuration, which is trusted.
+
+A helper that keeps failing is started again at most three times a minute. Helpers stop with the session: they are asked to end and killed after two seconds.
+
+Screen capture must follow the same rule when it is added. It must not become a global every client can bind.
+
+## Session lock
+
+`tillingctl lock`, or the `lock` action of a binding, starts the locker. While the session is locked no window receives input, key bindings do nothing, and an output shows only what the locker drew, or a blank frame.
+
+The session never unlocks because its locker went away. When a locker the compositor started dies, a new one is started, at most three times a minute; after that the session stays locked until `tillingctl lock` is run again, from another virtual terminal or over the network. A locker started by other means is not replaced.
+
+Tests: `lock::` for the protocol and `locker::` for the locker the compositor starts.
 
 ## Control socket
 
@@ -40,7 +61,8 @@ The configuration is trusted: it belongs to the user and can start programs.
 
 - A file is at most 256 KiB. Unknown keys, unknown versions and out-of-range values are refused, and a refused file changes nothing.
 - Patterns of window rules use a regular expression engine without backtracking, with limits on the size of the pattern and of the compiled program.
-- A binding starts a program from a list of arguments. No shell is involved, and no window title or application identifier is ever placed in a command.
+- A binding, a helper and the locker each start a program from a list of arguments. No shell is involved, and no window title or application identifier is ever placed in a command.
+- Started programs receive `WAYLAND_DISPLAY`, `TILLING_SOCKET`, `XDG_CURRENT_DESKTOP` and `XDG_SESSION_TYPE` of this instance. With `--session-target` the same four variables are handed to the user service manager, and removed from it when the session ends.
 
 ## Memory safety
 
