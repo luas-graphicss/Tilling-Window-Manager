@@ -1,16 +1,17 @@
+use std::ops::RangeInclusive;
 use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use wayland_client::globals::registry_queue_init;
+use wayland_client::globals::{GlobalList, registry_queue_init};
 use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_compositor::WlCompositor;
 use wayland_client::protocol::wl_seat::WlSeat;
 use wayland_client::protocol::wl_shm::WlShm;
 use wayland_client::protocol::wl_subcompositor::WlSubcompositor;
 use wayland_client::protocol::wl_surface::WlSurface;
-use wayland_client::{Connection, EventQueue};
+use wayland_client::{Connection, Dispatch, EventQueue, Proxy};
 use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1;
 use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_v1::WpFractionalScaleV1;
 use wayland_protocols::xdg::decoration::zv1::client::zxdg_decoration_manager_v1::ZxdgDecorationManagerV1;
@@ -56,6 +57,7 @@ struct Toplevel {
 pub struct Client {
     pub(crate) queue: EventQueue<ClientState>,
     pub(crate) state: ClientState,
+    registry: GlobalList,
     globals: Vec<AdvertisedGlobal>,
     pub(crate) compositor: WlCompositor,
     pub(crate) subcompositor: WlSubcompositor,
@@ -78,6 +80,10 @@ impl Client {
             path: socket.to_path_buf(),
             source,
         })?;
+        Self::from_stream(stream)
+    }
+
+    pub fn from_stream(stream: UnixStream) -> Result<Self, ClientError> {
         let connection = Connection::from_socket(stream).map_err(ClientError::Handshake)?;
         let (list, queue) =
             registry_queue_init::<ClientState>(&connection).map_err(ClientError::Globals)?;
@@ -112,6 +118,7 @@ impl Client {
         Ok(Self {
             queue,
             state: ClientState::default(),
+            registry: list,
             globals,
             compositor,
             subcompositor,
@@ -409,6 +416,56 @@ impl Client {
             .roundtrip(&mut self.state)
             .map(drop)
             .map_err(ClientError::Dispatch)
+    }
+
+    pub fn wait_until(
+        &mut self,
+        expectation: &'static str,
+        satisfied: impl Fn(&Self) -> bool,
+    ) -> Result<(), ClientError> {
+        let started = Instant::now();
+        loop {
+            self.roundtrip()?;
+            if satisfied(self) {
+                return Ok(());
+            }
+            if started.elapsed() > WAIT_LIMIT {
+                return Err(ClientError::Timeout(expectation));
+            }
+            thread::sleep(WAIT_STEP);
+        }
+    }
+
+    pub(crate) fn wait_for<Found>(
+        &mut self,
+        expectation: &'static str,
+        find: impl Fn(&ClientState) -> Option<Found>,
+    ) -> Result<Found, ClientError> {
+        let started = Instant::now();
+        loop {
+            self.roundtrip()?;
+            if let Some(found) = find(&self.state) {
+                return Ok(found);
+            }
+            if started.elapsed() > WAIT_LIMIT {
+                return Err(ClientError::Timeout(expectation));
+            }
+            thread::sleep(WAIT_STEP);
+        }
+    }
+
+    pub(crate) fn bind<Global>(
+        &self,
+        versions: RangeInclusive<u32>,
+        interface: &'static str,
+    ) -> Result<Global, ClientError>
+    where
+        Global: Proxy + 'static,
+        ClientState: Dispatch<Global, ()>,
+    {
+        self.registry
+            .bind(&self.queue.handle(), versions, ())
+            .map_err(|source| ClientError::Bind { interface, source })
     }
 
     #[must_use]

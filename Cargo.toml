@@ -45,6 +45,7 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "std"] }
 wayland-client = "0.31.15"
 wayland-protocols = { version = "0.32.13", features = ["client", "staging", "unstable"] }
+wayland-protocols-wlr = { version = "0.3.12", features = ["client"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
