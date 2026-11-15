@@ -1,6 +1,6 @@
 # Wayland protocols
 
-Tilling advertises seven globals. This directory records, for each one, the version it is capped at, the module that owns it, the errors a client can run into and the tests that pin the behaviour.
+Tilling advertises ten globals on every backend and two more on the native one. This directory records, for each one, the version it is capped at, the module that owns it, the errors a client can run into and the tests that pin the behaviour.
 
 | Global | Version | Owner | Reference |
 | --- | --- | --- | --- |
@@ -11,12 +11,17 @@ Tilling advertises seven globals. This directory records, for each one, the vers
 | `wl_output` | 4 | `protocol/output.rs` | [core.md](core.md#wl_output) |
 | `xdg_wm_base` | 6 | `protocol/xdg_shell.rs` | [xdg-shell.md](xdg-shell.md) |
 | `zxdg_decoration_manager_v1` | 1 | `protocol/decoration.rs` | [xdg-decoration.md](xdg-decoration.md) |
+| `wp_viewporter` | 1 | `protocol.rs` | [output-scaling.md](output-scaling.md#wp_viewporter) |
+| `wp_fractional_scale_manager_v1` | 1 | `protocol/fractional_scale.rs` | [output-scaling.md](output-scaling.md#wp_fractional_scale_manager_v1) |
+| `zxdg_output_manager_v1` | 3 | `protocol/output.rs` | [output-scaling.md](output-scaling.md#zxdg_output_manager_v1) |
+| `wp_presentation` | 2 | `protocol.rs`, native backend only | [native-backend.md](native-backend.md#wp_presentation) |
+| `zwp_linux_dmabuf_v1` | 5 | `protocol/dmabuf.rs`, native backend only | [native-backend.md](native-backend.md#zwp_linux_dmabuf_v1) |
 
 Owner paths are relative to `crates/tilling-compositor/src/`. Test names are relative to `crates/tilling-compositor/tests/headless/`: `lifecycle::first_buffer_maps_and_focuses_the_window` is in `lifecycle.rs`. Those tests drive the compositor through a real Wayland socket with the client from `crates/tilling-test-support`.
 
 Nothing else is advertised. Clipboard and drag and drop (`wl_data_device_manager`), layer shell, input methods and session lock are not implemented, so a client that looks for them finds no global.
 
-`globals::only_the_implemented_globals_are_advertised` compares the registry a client receives with the table above. Run it with:
+`globals::only_the_implemented_globals_are_advertised` compares the registry a client receives on the headless backend with the first ten rows of the table. Run it with:
 
     cargo test -p tilling-compositor --test headless globals::
 
