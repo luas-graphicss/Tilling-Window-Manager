@@ -1,7 +1,9 @@
+mod insets;
 mod rect;
 mod scale;
 mod split;
 
+pub use insets::Insets;
 pub use rect::{Logical, LogicalRect, Physical, PhysicalRect, Rect};
 pub use scale::Scale;
 pub use split::{Orientation, Ratio};

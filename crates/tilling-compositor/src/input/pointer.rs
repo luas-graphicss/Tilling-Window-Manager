@@ -1,10 +1,13 @@
 use smithay::backend::input::ButtonState;
-use smithay::input::pointer::{ButtonEvent, MotionEvent};
+use smithay::input::pointer::{ButtonEvent, MotionEvent, RelativeMotionEvent};
 use smithay::utils::{Logical, Point, SERIAL_COUNTER};
 use tilling_core::Command;
 
 use crate::geometry::nearest_inside;
+use crate::protocol::root_of;
 use crate::runtime::Compositor;
+
+const MICROSECONDS_PER_MILLISECOND: u64 = 1000;
 
 impl Compositor {
     pub(crate) fn confine_pointer(&mut self) {
@@ -33,20 +36,32 @@ impl Compositor {
         };
         pointer.motion(self, focus, &event);
         pointer.frame(self);
-        if self.draws_named_cursor || self.cursor_surface().is_some() {
+        self.engage_pointer_constraint();
+        let pointer_is_drawn = self.draws_named_cursor || self.cursor_surface().is_some();
+        if pointer_is_drawn || self.drag_icon.is_some() {
             self.demand_frame();
         }
     }
 
-    #[cfg(any(feature = "nested", feature = "drm"))]
     pub(crate) fn handle_pointer_delta(&mut self, delta: Point<f64, Logical>, time: u32) {
         let Some(pointer) = self.seat.get_pointer() else {
             return;
         };
-        let wanted = pointer.current_location() + delta;
+        let location = pointer.current_location();
+        let focus = self.surface_under(location);
+        let constraint = self.held_constraint(&pointer, focus.as_ref(), location);
+        let event = RelativeMotionEvent {
+            delta,
+            delta_unaccel: delta,
+            utime: u64::from(time) * MICROSECONDS_PER_MILLISECOND,
+        };
+        pointer.relative_motion(self, focus.clone(), &event);
         let areas = self.desktop.outputs().map(|(_, output)| output.area());
-        if let Some(location) = nearest_inside(areas, wanted) {
-            self.handle_pointer_motion(location, time);
+        let target = nearest_inside(areas, location + delta)
+            .filter(|target| self.constraint_allows(constraint.as_ref(), focus.as_ref(), *target));
+        match target {
+            Some(target) => self.handle_pointer_motion(target, time),
+            None => pointer.frame(self),
         }
     }
 
@@ -64,8 +79,9 @@ impl Compositor {
         let Some(pointer) = self.seat.get_pointer() else {
             return;
         };
-        if state == ButtonState::Pressed && !pointer.is_grabbed() {
-            self.focus_window_at(pointer.current_location());
+        let chooses_focus = state == ButtonState::Pressed && !pointer.is_grabbed();
+        if chooses_focus && !self.lock.is_engaged() {
+            self.focus_at(pointer.current_location());
         }
         let event = ButtonEvent {
             serial: SERIAL_COUNTER.next_serial(),
@@ -76,6 +92,20 @@ impl Compositor {
         self.input_serials.record(event.serial);
         pointer.button(self, &event);
         pointer.frame(self);
+    }
+
+    fn focus_at(&mut self, location: Point<f64, Logical>) {
+        let pressed = self
+            .surface_under(location)
+            .map(|(surface, _)| root_of(&surface));
+        let on_layer = pressed
+            .as_ref()
+            .is_some_and(|surface| self.layer_on_output(surface).is_some());
+        self.choose_layer_at_press(pressed.as_ref());
+        if !on_layer {
+            self.focus_window_at(location);
+        }
+        self.sync_keyboard_focus();
     }
 
     fn focus_window_at(&mut self, location: Point<f64, Logical>) {

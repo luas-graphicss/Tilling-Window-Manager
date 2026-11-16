@@ -1,14 +1,13 @@
-use std::ffi::OsString;
 use std::io::{self, BufRead, Write};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
+use crate::cargo;
 use crate::inventory::Inventory;
 use crate::operator;
 use crate::sandbox::{Sandbox, SandboxError};
 use crate::scenario::{Scenario, Step};
 
 const RUNTIME_DIRECTORY_VARIABLE: &str = "XDG_RUNTIME_DIR";
-const CARGO_VARIABLE: &str = "CARGO";
 const RESULT_PREFIX: &str = "test result:";
 
 #[derive(Debug, thiserror::Error)]
@@ -136,8 +135,7 @@ fn on_hardware(
 }
 
 fn execute(step: &Step, sandbox: &Sandbox) -> Result<(StepResult, Vec<u8>), RunError> {
-    let cargo = std::env::var_os(CARGO_VARIABLE).unwrap_or_else(|| OsString::from("cargo"));
-    let mut command = Command::new(cargo);
+    let mut command = cargo::command();
     command.args(step.arguments()).stdin(Stdio::null());
     sandbox.confine(&mut command);
     let finished = command.output().map_err(RunError::Cargo)?;

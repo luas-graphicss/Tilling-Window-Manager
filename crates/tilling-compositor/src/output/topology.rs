@@ -76,6 +76,7 @@ impl Compositor {
         let Some(registered) = self.outputs.remove(output) else {
             return;
         };
+        Self::close_layers(output);
         self.forget_output_trial(registered.id);
         self.retire_global(registered.global);
         self.run(Command::RemoveOutput {
@@ -162,7 +163,7 @@ impl Compositor {
         Some(output.current_scale().fractional_scale())
     }
 
-    fn active_output(&self) -> Option<&Output> {
+    pub(crate) fn active_output(&self) -> Option<&Output> {
         let active = self.desktop.workspace(self.desktop.active_workspace())?;
         let owner = active.output().and_then(|owner| self.outputs.by_id(owner));
         owner.or_else(|| self.outputs.iter().next().map(|(_, output)| output))

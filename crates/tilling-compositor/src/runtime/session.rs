@@ -1,3 +1,5 @@
+use std::io;
+use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
@@ -13,6 +15,7 @@ use crate::input::SyntheticInput;
 use crate::options::{BackendKind, Options, VirtualOutput};
 use crate::render::FrameStats;
 use crate::scene::Scene;
+use crate::security::Capability;
 
 const THREAD_NAME: &str = "tilling-compositor";
 
@@ -29,6 +32,9 @@ pub struct SessionSnapshot {
     pub control_peers: usize,
     pub control_subscribers: usize,
     pub frames: FrameStats,
+    pub layers: usize,
+    pub locked: bool,
+    pub helpers: usize,
 }
 
 #[derive(Debug)]
@@ -44,6 +50,7 @@ enum Request {
     Inject(SyntheticInput),
     PlugOutput(VirtualOutput, mpsc::Sender<TopologyChange>),
     UnplugOutput(String, mpsc::Sender<TopologyChange>),
+    ConnectPrivileged(Vec<Capability>, mpsc::Sender<io::Result<UnixStream>>),
     Stop,
 }
 
@@ -101,6 +108,20 @@ impl Session {
 
     pub fn unplug_output(&self, name: &str) -> Result<(), CompositorError> {
         self.change_topology(|reply| Request::UnplugOutput(name.to_owned(), reply))
+    }
+
+    pub fn connect_privileged(
+        &self,
+        capabilities: &[Capability],
+    ) -> Result<UnixStream, CompositorError> {
+        let (reply, connection) = mpsc::channel();
+        self.requests
+            .send(Request::ConnectPrivileged(capabilities.to_vec(), reply))
+            .map_err(|_| CompositorError::SessionClosed)?;
+        connection
+            .recv()
+            .map_err(|_| CompositorError::SessionClosed)?
+            .map_err(CompositorError::PrivilegedClient)
     }
 
     pub fn stop(mut self) -> Result<(), CompositorError> {
@@ -191,6 +212,13 @@ fn prepare(options: Options) -> Result<Prepared, CompositorError> {
                     .backend
                     .unplug_virtual_output(&name, &mut runtime.compositor);
                 report_topology_change(&reply, outcome);
+            }
+            Event::Msg(Request::ConnectPrivileged(capabilities, reply)) => {
+                let privileges = capabilities.into_iter().collect();
+                let connection = runtime.compositor.connect_privileged(privileges);
+                if reply.send(connection).is_err() {
+                    tracing::debug!("privileged client went away");
+                }
             }
             Event::Msg(Request::Stop) | Event::Closed => runtime.compositor.stop(),
         })

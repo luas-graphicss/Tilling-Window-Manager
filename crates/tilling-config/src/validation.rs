@@ -7,6 +7,7 @@ use crate::names::validate_workspaces;
 use crate::outputs::{self, OutputConfig};
 use crate::rules::{self, WindowRules};
 use crate::schema::Sections;
+use crate::session::{self, SessionConfig};
 
 #[derive(Debug)]
 pub struct ValidatedConfig {
@@ -14,6 +15,7 @@ pub struct ValidatedConfig {
     layout: LayoutConfig,
     input: InputConfig,
     applications: Applications,
+    session: SessionConfig,
     bindings: Vec<Binding>,
     rules: WindowRules,
     outputs: Vec<OutputConfig>,
@@ -41,6 +43,11 @@ impl ValidatedConfig {
     }
 
     #[must_use]
+    pub fn session(&self) -> &SessionConfig {
+        &self.session
+    }
+
+    #[must_use]
     pub fn bindings(&self) -> &[Binding] {
         &self.bindings
     }
@@ -64,6 +71,7 @@ pub(crate) fn validate(sections: Sections) -> Result<ValidatedConfig, ConfigErro
     let bindings = bindings::validate(sections.bindings, &workspaces, &mut report);
     let rules = rules::validate(sections.rules, &workspaces, &mut report);
     let outputs = outputs::validate(sections.outputs, &mut report);
+    let session = session::validate(sections.session, sections.helpers, &mut report);
     let Some(applications) = applications::validate(sections.applications, &mut report) else {
         return Err(report.into_error());
     };
@@ -72,6 +80,7 @@ pub(crate) fn validate(sections: Sections) -> Result<ValidatedConfig, ConfigErro
         layout,
         input,
         applications,
+        session,
         bindings,
         rules,
         outputs,

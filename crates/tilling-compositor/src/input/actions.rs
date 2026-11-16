@@ -3,6 +3,7 @@ use tilling_config::{Action, CommandLine, ConfigError, DEFAULT_MODE, ValidatedCo
 use tilling_core::{Command, ModeChange, WindowId, WindowMode};
 
 use super::BindingTable;
+use crate::error::cause_chain;
 use crate::runtime::Compositor;
 
 impl Compositor {
@@ -47,6 +48,7 @@ impl Compositor {
             Action::CycleLayout => self.cycle_layout(),
             Action::EnterMode(mode) => self.keyboard_mode = mode,
             Action::ReloadConfig => self.reload_config(),
+            Action::Lock => self.lock_on_request(),
             Action::Quit => self.stop(),
         }
     }
@@ -123,6 +125,12 @@ impl Compositor {
         }
     }
 
+    fn lock_on_request(&mut self) {
+        if let Err(error) = self.request_lock() {
+            tracing::warn!(error = %cause_chain(&error), "lock the session");
+        }
+    }
+
     fn adopt_config(&mut self, config: ValidatedConfig) {
         self.config_revision = self.config_revision.saturating_add(1);
         self.bindings = BindingTable::compile(config.bindings());
@@ -130,6 +138,7 @@ impl Compositor {
             DEFAULT_MODE.clone_into(&mut self.keyboard_mode);
         }
         self.config = config;
+        self.sync_helpers();
         self.run(Command::SetDefaultLayout {
             layout: self.config.layout().default,
         });

@@ -15,6 +15,8 @@ use wayland_protocols::xdg::shell::client::xdg_surface::{self, XdgSurface};
 use wayland_protocols::xdg::shell::client::xdg_toplevel::{self, XdgToplevel};
 use wayland_protocols::xdg::shell::client::xdg_wm_base::{self, XdgWmBase};
 
+use crate::layer::LayerIndex;
+use crate::session_lock::LockSurfaceRole;
 use crate::state::{
     ButtonEvent, ClientState, KeyEvent, PopupConfigure, PopupIndex, ProposedState, ScrollEvent,
     SubsurfaceIndex,
@@ -211,10 +213,14 @@ impl Dispatch<WlKeyboard, ()> for ClientState {
             wl_keyboard::Event::Enter { surface, .. } => {
                 state.seat.keyboard_focus = toplevel_of(&surface);
                 state.seat.keyboard_popup = popup_of(&surface);
+                state.seat.keyboard_layer = layer_of(&surface);
+                state.seat.keyboard_on_lock = surface.data::<LockSurfaceRole>().is_some();
             }
             wl_keyboard::Event::Leave { .. } => {
                 state.seat.keyboard_focus = None;
                 state.seat.keyboard_popup = None;
+                state.seat.keyboard_layer = None;
+                state.seat.keyboard_on_lock = false;
             }
             wl_keyboard::Event::Key {
                 key,
@@ -248,11 +254,13 @@ impl Dispatch<WlPointer, ()> for ClientState {
                 state.seat.enter_serial = Some(serial);
                 state.seat.pointer_focus = toplevel_of(&surface);
                 state.seat.pointer_subsurface = subsurface_of(&surface);
+                state.seat.pointer_layer = layer_of(&surface);
                 state.seat.pointer_position = Some((surface_x, surface_y));
             }
             wl_pointer::Event::Leave { .. } => {
                 state.seat.pointer_focus = None;
                 state.seat.pointer_subsurface = None;
+                state.seat.pointer_layer = None;
                 state.seat.pointer_position = None;
             }
             wl_pointer::Event::Motion {
@@ -293,6 +301,10 @@ impl Dispatch<WlPointer, ()> for ClientState {
 
 fn toplevel_of(surface: &WlSurface) -> Option<usize> {
     surface.data::<usize>().copied()
+}
+
+fn layer_of(surface: &WlSurface) -> Option<usize> {
+    surface.data::<LayerIndex>().map(|layer| layer.0)
 }
 
 fn popup_of(surface: &WlSurface) -> Option<usize> {

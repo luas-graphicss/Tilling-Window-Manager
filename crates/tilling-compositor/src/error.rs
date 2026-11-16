@@ -81,6 +81,8 @@ pub enum CompositorError {
     SessionThread(#[source] std::io::Error),
     #[error("compositor session is no longer running")]
     SessionClosed,
+    #[error("open a privileged client connection")]
+    PrivilegedClient(#[source] std::io::Error),
 }
 
 pub(crate) fn cause_chain(error: &dyn Error) -> String {

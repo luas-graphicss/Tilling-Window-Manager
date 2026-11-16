@@ -1,0 +1,13 @@
+Package: tilling
+Section: x11
+Priority: optional
+Maintainer: Pedro Nieva <321570081+luas-graphicss@users.noreply.github.com>
+Depends: libc6, libgcc-s1, libegl1, libgbm1, libinput10, libseat1, libudev1, libxkbcommon0
+Recommends: foot, fuzzel, swaylock, libwayland-client0, libwayland-egl1
+Suggests: xdg-desktop-portal-gtk
+Homepage: https://github.com/luas-graphicss/Tilling-Window-Manager
+Description: Tiling Wayland compositor
+ Tilling arranges the windows of each workspace as tiles, with BSP,
+ master-stack and monocle layouts, and is driven from the keyboard.
+ It runs on DRM/KMS from a virtual terminal or as a window inside
+ another Wayland session, and tillingctl controls it over a local socket.

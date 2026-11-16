@@ -100,7 +100,8 @@ impl Compositor {
             .into_iter()
             .flatten()
             .any(|focused| focused.id().same_client_as(&root.id()));
-        owns_focus && self.windows.get(root).is_some() && self.input_serials.contains(serial)
+        let managed = self.windows.get(root).is_some() || self.layer_on_output(root).is_some();
+        owns_focus && managed && self.input_serials.contains(serial)
     }
 
     fn popup_bounds(&self, popup: &PopupSurface) -> Option<Rectangle<i32, Logical>> {

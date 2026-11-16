@@ -1,0 +1,52 @@
+schema_version = 1
+
+workspaces = ["web", "code", "chat"]
+
+[layout]
+inner_gap = 4
+outer_gap = 12
+default = "master-stack"
+
+[applications]
+terminal = ["foot", "--app-id", "terminal"]
+
+[[bindings]]
+keys = "Super+Return"
+action = "open-terminal"
+
+[[bindings]]
+keys = "Super+d"
+action = { spawn = ["fuzzel"] }
+
+[[bindings]]
+keys = "Super+2"
+action = { switch-workspace = "code" }
+
+[[bindings]]
+keys = "Super+r"
+action = { enter-mode = "resize" }
+
+[[bindings]]
+mode = "resize"
+keys = "h"
+action = { resize = -250 }
+
+[[bindings]]
+mode = "resize"
+keys = "Escape"
+action = { enter-mode = "default" }
+
+[[rules]]
+app_id = "^firefox$"
+workspace = "web"
+
+[[rules]]
+title = "(?i)picture.in.picture"
+mode = "floating"
+
+[[outputs]]
+name = "DP-1"
+scale = 1.5
+position = { x = -1920, y = 0 }
+mode = { width = 2560, height = 1440, refresh = 143.9 }
+transform = "90"

@@ -1,6 +1,6 @@
-use tilling_core::geometry::Scale;
+use tilling_core::geometry::{Insets, Scale};
 use tilling_core::layout::Gaps;
-use tilling_core::{Command, DesktopState, Effect, TransitionError, WindowMode};
+use tilling_core::{Command, DesktopState, Effect, ModeChange, TransitionError, WindowMode};
 
 use crate::scenario::{add_output, apply, area, desktop_with_output, open, open_in, placement_of};
 
@@ -154,6 +154,92 @@ fn repeated_hotplug_keeps_the_same_workspaces_and_windows() {
     assert_eq!(state.workspaces().count(), workspaces);
     assert_eq!(state.output(secondary).unwrap().workspace(), shown);
     assert_eq!(state.workspace(shown).unwrap().windows(), [window]);
+}
+
+#[test]
+fn reserved_edges_keep_tiles_out_but_not_fullscreen_windows() {
+    let (mut state, output) = desktop_with_output();
+    let window = open(&mut state, "terminal");
+    let edges = Insets {
+        top: 30,
+        left: 50,
+        ..Insets::default()
+    };
+
+    let transition = apply(&mut state, Command::ReserveOutputEdges { output, edges });
+    let tiled = placement_of(&state, window, Gaps::default());
+    apply(
+        &mut state,
+        Command::ChangeWindowMode {
+            window,
+            change: ModeChange::EnterFullscreen,
+        },
+    );
+    let fullscreen = placement_of(&state, window, Gaps::default());
+
+    assert_eq!(transition.effects, [Effect::OutputConfigured(output)]);
+    assert_eq!(tiled, area(50, 30, 1870, 1050));
+    assert_eq!(fullscreen, area(0, 0, 1920, 1080));
+}
+
+#[test]
+fn edges_that_leave_no_room_are_refused_and_the_previous_ones_stay() {
+    let (mut state, output) = desktop_with_output();
+    let kept = Insets {
+        bottom: 40,
+        ..Insets::default()
+    };
+    apply(
+        &mut state,
+        Command::ReserveOutputEdges {
+            output,
+            edges: kept,
+        },
+    );
+
+    let refused = state.apply(Command::ReserveOutputEdges {
+        output,
+        edges: Insets {
+            left: 1000,
+            right: 920,
+            ..Insets::default()
+        },
+    });
+
+    assert_eq!(refused, Err(TransitionError::OutputFullyReserved(output)));
+    assert_eq!(state.output(output).unwrap().reserved_edges(), kept);
+    assert_eq!(
+        state.output(output).unwrap().work_area(),
+        area(0, 0, 1920, 1040)
+    );
+}
+
+#[test]
+fn output_too_small_for_its_reserved_edges_drops_them() {
+    let (mut state, output) = desktop_with_output();
+    let edges = Insets {
+        top: 600,
+        ..Insets::default()
+    };
+    apply(&mut state, Command::ReserveOutputEdges { output, edges });
+
+    apply(
+        &mut state,
+        Command::ConfigureOutput {
+            output,
+            area: area(0, 0, 800, 600),
+            scale: Scale::ONE,
+        },
+    );
+
+    assert_eq!(
+        state.output(output).unwrap().reserved_edges(),
+        Insets::default()
+    );
+    assert_eq!(
+        state.output(output).unwrap().work_area(),
+        area(0, 0, 800, 600)
+    );
 }
 
 #[test]

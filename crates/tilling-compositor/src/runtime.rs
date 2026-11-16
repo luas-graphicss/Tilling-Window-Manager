@@ -13,12 +13,13 @@ use smithay::reexports::wayland_server::Display;
 use crate::backend::Backend;
 use crate::control;
 use crate::error::CompositorError;
+use crate::helpers::{SessionEnvironment, Supervisor};
 use crate::input::Launcher;
 use crate::options::Options;
 use instance::Instance;
 use state::Settings;
 
-pub(crate) use clients::ClientState;
+pub(crate) use clients::{ClientState, Departures};
 pub(crate) use state::Compositor;
 pub(crate) use usage::ProcessUsage;
 
@@ -48,12 +49,18 @@ impl Runtime {
         let instance = Instance::resolve(&options.runtime_dir, &options.instance)?;
         let mut display = Display::new().map_err(CompositorError::Display)?;
         let handle = event_loop.handle();
+        let environment = SessionEnvironment::new(
+            &options.runtime_dir,
+            instance.wayland_socket(),
+            instance.control_socket(),
+        );
         let settings = Settings {
             config: options.config,
             config_source: options.config_source,
             transaction_timeout: options.transaction_timeout,
             output_confirmation: options.output_confirmation,
-            launcher: Launcher::new(&options.runtime_dir, instance.wayland_socket()),
+            launcher: Launcher::new(environment.clone()),
+            helpers: Supervisor::new(environment, options.helper_restart_delay),
         };
         let mut compositor = Compositor::new(
             display.handle(),
@@ -65,6 +72,10 @@ impl Runtime {
         clients::watch_display(&handle, &mut display)?;
         clients::listen(&handle, instance.wayland_socket())?;
         control::listen(&handle, instance.control_socket())?;
+        if let Some(services) = options.session_services {
+            compositor.helpers.announce(services);
+        }
+        compositor.sync_helpers();
         let runtime = Self {
             display,
             compositor,
@@ -88,6 +99,9 @@ impl Runtime {
 
     fn after_dispatch(&mut self) {
         self.compositor.settle();
+        self.compositor.review_locker();
+        self.compositor.review_pointer_constraint();
+        self.compositor.drop_selections_of_departed_clients();
         self.compositor.popups.cleanup();
         self.backend.follow(&mut self.compositor);
         if self.compositor.take_frame_demand() {

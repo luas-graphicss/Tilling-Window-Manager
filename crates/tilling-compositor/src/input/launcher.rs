@@ -1,39 +1,27 @@
-use std::ffi::OsString;
 use std::io;
-use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::Child;
 
 use tilling_config::CommandLine;
 
-const RUNTIME_DIRECTORY_VARIABLE: &str = "XDG_RUNTIME_DIR";
-const WAYLAND_DISPLAY_VARIABLE: &str = "WAYLAND_DISPLAY";
+use crate::helpers::{SessionEnvironment, spawn};
 
 #[derive(Debug)]
 pub(crate) struct Launcher {
-    runtime_dir: PathBuf,
-    wayland_display: OsString,
+    environment: SessionEnvironment,
     children: Vec<Child>,
 }
 
 impl Launcher {
-    pub(crate) fn new(runtime_dir: &Path, wayland_socket: &Path) -> Self {
+    pub(crate) fn new(environment: SessionEnvironment) -> Self {
         Self {
-            runtime_dir: runtime_dir.to_path_buf(),
-            wayland_display: wayland_socket
-                .file_name()
-                .map_or_else(|| wayland_socket.as_os_str().to_owned(), OsString::from),
+            environment,
             children: Vec::new(),
         }
     }
 
     pub(crate) fn launch(&mut self, command: &CommandLine) -> io::Result<()> {
         self.reap();
-        let child = Command::new(command.program())
-            .args(command.arguments())
-            .env(RUNTIME_DIRECTORY_VARIABLE, &self.runtime_dir)
-            .env(WAYLAND_DISPLAY_VARIABLE, &self.wayland_display)
-            .stdin(Stdio::null())
-            .spawn()?;
+        let child = spawn(command, &self.environment, None)?;
         self.children.push(child);
         Ok(())
     }

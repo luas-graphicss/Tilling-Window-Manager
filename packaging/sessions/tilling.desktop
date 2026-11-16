@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Tilling
+Comment=Tiling Wayland compositor
+Exec=tilling --backend drm --session-target tilling-session.target
+Type=Application
+DesktopNames=tilling

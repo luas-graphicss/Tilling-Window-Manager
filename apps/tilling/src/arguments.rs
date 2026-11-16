@@ -25,6 +25,12 @@ pub struct Arguments {
         help = "Name of this instance, used for its sockets"
     )]
     pub instance: Option<String>,
+    #[arg(
+        long,
+        value_name = "UNIT",
+        help = "Unit of the user service manager started with the session and stopped with it"
+    )]
+    pub session_target: Option<String>,
     #[arg(long, help = "Log debugging details")]
     pub verbose: bool,
 }
@@ -57,7 +63,25 @@ mod tests {
         assert_eq!(arguments.backend, Backend::Nested);
         assert_eq!(arguments.config, None);
         assert_eq!(arguments.instance, None);
+        assert_eq!(arguments.session_target, None);
         assert!(!arguments.verbose);
+    }
+
+    #[test]
+    fn native_session_can_name_the_unit_that_follows_it() {
+        let arguments = Arguments::try_parse_from([
+            "tilling",
+            "--backend",
+            "drm",
+            "--session-target",
+            "tilling-session.target",
+        ])
+        .unwrap();
+
+        assert_eq!(
+            arguments.session_target.as_deref(),
+            Some("tilling-session.target")
+        );
     }
 
     #[test]

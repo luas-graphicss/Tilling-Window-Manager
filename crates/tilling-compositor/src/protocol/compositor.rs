@@ -31,7 +31,9 @@ impl CompositorHandler for Compositor {
         if is_sync_subsurface(surface) {
             return;
         }
-        self.toplevel_committed(&root_of(surface));
+        let root = root_of(surface);
+        self.toplevel_committed(&root);
+        self.layer_committed(&root);
         self.popup_committed(surface);
         self.demand_frame();
     }
@@ -47,7 +49,7 @@ impl ShmHandler for Compositor {
     }
 }
 
-pub(super) fn root_of(surface: &WlSurface) -> WlSurface {
+pub(crate) fn root_of(surface: &WlSurface) -> WlSurface {
     let mut root = surface.clone();
     while let Some(parent) = get_parent(&root) {
         root = parent;

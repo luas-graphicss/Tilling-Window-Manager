@@ -1,0 +1,18 @@
+[package]
+name = "tilling-fuzz-cases"
+description = "Properties that arbitrary input must not break in the configuration, the control protocol and the window state"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+tilling-config = { workspace = true }
+tilling-core = { workspace = true }
+tilling-ipc = { workspace = true }
+
+[lints]
+workspace = true

@@ -4,6 +4,7 @@ use tilling_core::TransitionError;
 use tilling_ipc::Outcome;
 
 use crate::error::cause_chain;
+use crate::helpers::LockRequestError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Refusal {
@@ -28,6 +29,15 @@ impl From<Refusal> for Outcome {
     }
 }
 
+impl From<LockRequestError> for Refusal {
+    fn from(error: LockRequestError) -> Self {
+        match error {
+            LockRequestError::NoLocker => Self::NotPermitted(error.to_string()),
+            LockRequestError::Launch { .. } => Self::invalid_because(&error),
+        }
+    }
+}
+
 impl From<TransitionError> for Refusal {
     fn from(error: TransitionError) -> Self {
         let message = error.to_string();
@@ -38,6 +48,7 @@ impl From<TransitionError> for Refusal {
             TransitionError::EmptyWorkspaceName
             | TransitionError::DuplicateWorkspaceName(_)
             | TransitionError::EmptyOutputArea
+            | TransitionError::OutputFullyReserved(_)
             | TransitionError::FullscreenLocked(_)
             | TransitionError::WindowStashed(_)
             | TransitionError::RevisionExhausted

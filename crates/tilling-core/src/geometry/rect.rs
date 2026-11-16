@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use serde::Serialize;
 
 use super::split::divide_evenly;
-use super::{GeometryError, Orientation, Ratio, Scale};
+use super::{GeometryError, Insets, Orientation, Ratio, Scale};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Logical;
@@ -108,6 +108,20 @@ impl<Unit> Rect<Unit> {
             height: self.height - 2 * vertical,
             unit: PhantomData,
         }
+    }
+
+    #[must_use]
+    pub fn inset(&self, insets: Insets) -> Option<Self> {
+        let horizontal = insets.left.checked_add(insets.right)?;
+        let vertical = insets.top.checked_add(insets.bottom)?;
+        let inner = Self {
+            x: self.x.checked_add_unsigned(insets.left)?,
+            y: self.y.checked_add_unsigned(insets.top)?,
+            width: self.width.checked_sub(horizontal)?,
+            height: self.height.checked_sub(vertical)?,
+            unit: PhantomData,
+        };
+        (!inner.is_empty()).then_some(inner)
     }
 
     #[must_use]

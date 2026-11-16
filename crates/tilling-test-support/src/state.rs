@@ -2,9 +2,14 @@ use std::collections::VecDeque;
 
 use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_pointer::WlPointer;
+use wayland_protocols::wp::idle_inhibit::zv1::client::zwp_idle_inhibitor_v1::ZwpIdleInhibitorV1;
 use wayland_protocols::xdg::shell::client::xdg_toplevel::{State, WmCapabilities};
 
 use crate::decoration::DecorationMode;
+use crate::layer::LayerRecord;
+use crate::pointer_lock::PointerLockLog;
+use crate::selection::SelectionLog;
+use crate::session_lock::LockLog;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AdvertisedGlobal {
@@ -88,8 +93,11 @@ pub(crate) struct SeatLog {
     pub(crate) enter_serial: Option<u32>,
     pub(crate) keyboard_focus: Option<usize>,
     pub(crate) keyboard_popup: Option<usize>,
+    pub(crate) keyboard_layer: Option<usize>,
+    pub(crate) keyboard_on_lock: bool,
     pub(crate) keys: Vec<KeyEvent>,
     pub(crate) pointer_focus: Option<usize>,
+    pub(crate) pointer_layer: Option<usize>,
     pub(crate) pointer_subsurface: Option<usize>,
     pub(crate) pointer_position: Option<(f64, f64)>,
     pub(crate) buttons: Vec<ButtonEvent>,
@@ -104,6 +112,13 @@ pub(crate) struct ClientState {
     pub(crate) seat: SeatLog,
     pub(crate) released_buffers: usize,
     pub(crate) retired_buffers: Vec<WlBuffer>,
+    pub(crate) layers: Vec<Option<LayerRecord>>,
+    pub(crate) selection: SelectionLog,
+    pub(crate) activation_tokens: Vec<String>,
+    pub(crate) idle_watches: Vec<bool>,
+    pub(crate) idle_inhibitors: Vec<ZwpIdleInhibitorV1>,
+    pub(crate) lock: LockLog,
+    pub(crate) pointer_lock: PointerLockLog,
 }
 
 impl ClientState {

@@ -125,6 +125,84 @@ impl Scenario {
                     "backend::drm::frame_clock::",
                 ],
             }],
+            Self::ReleaseJourney => &[
+                Step {
+                    package: "tilling",
+                    target: Target::Integration("cli"),
+                    filters: &[],
+                },
+                Step {
+                    package: "tillingctl",
+                    target: Target::Integration("cli"),
+                    filters: &[],
+                },
+                Step {
+                    package: COMPOSITOR,
+                    target: HEADLESS,
+                    filters: &[
+                        "lifecycle::",
+                        "tiling::",
+                        "layouts::",
+                        "scratchpad::",
+                        "control::",
+                    ],
+                },
+            ],
+            Self::DesktopIntegration => &[
+                Step {
+                    package: "tilling-core",
+                    target: Target::Integration("domain"),
+                    filters: &["outputs::"],
+                },
+                Step {
+                    package: COMPOSITOR,
+                    target: Target::Library,
+                    filters: &["helpers::", "security::"],
+                },
+                Step {
+                    package: COMPOSITOR,
+                    target: HEADLESS,
+                    filters: &[
+                        "globals::",
+                        "layers::",
+                        "selection::",
+                        "activation::",
+                        "idle::",
+                        "pointer_lock::",
+                        "privileges::",
+                        "helpers::",
+                    ],
+                },
+            ],
+            Self::SessionLockFailures => &[
+                Step {
+                    package: COMPOSITOR,
+                    target: Target::Library,
+                    filters: &["helpers::supervisor::"],
+                },
+                Step {
+                    package: COMPOSITOR,
+                    target: HEADLESS,
+                    filters: &["lock::", "locker::"],
+                },
+            ],
+            Self::ConfigReloadAtomicity => &[
+                Step {
+                    package: "tilling-config",
+                    target: Target::Integration("validation"),
+                    filters: &[],
+                },
+                Step {
+                    package: "tilling-config",
+                    target: Target::Integration("session"),
+                    filters: &[],
+                },
+                Step {
+                    package: COMPOSITOR,
+                    target: HEADLESS,
+                    filters: &["reload::", "helpers::reloading"],
+                },
+            ],
         }
     }
 }

@@ -8,6 +8,7 @@ use smithay::input::{Seat, SeatState};
 use smithay::reexports::calloop::{LoopHandle, LoopSignal};
 use smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::WmCapabilities;
 use smithay::reexports::wayland_server::DisplayHandle;
+use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
 use smithay::wayland::compositor::CompositorState;
 use smithay::wayland::fractional_scale::FractionalScaleManagerState;
 use smithay::wayland::output::OutputManagerState;
@@ -18,12 +19,16 @@ use smithay::wayland::viewporter::ViewporterState;
 use tilling_config::{ConfigSource, DEFAULT_MODE, ValidatedConfig};
 use tilling_core::DesktopState;
 
-use super::Runtime;
+use super::{Departures, Runtime};
 use crate::control::ControlPeers;
 use crate::desktop::initial_desktop;
 use crate::error::CompositorError;
+use crate::helpers::Supervisor;
+use crate::idle::IdleTracker;
 use crate::input::{BindingTable, InputSerials, Launcher};
+use crate::lock::SessionLock;
 use crate::output::{OutputRegistry, OutputTrial};
+use crate::protocol::DesktopProtocols;
 #[cfg(feature = "drm")]
 use crate::protocol::DmabufImports;
 use crate::render::FrameStats;
@@ -40,6 +45,7 @@ pub(crate) struct Settings {
     pub(crate) transaction_timeout: Duration,
     pub(crate) output_confirmation: Duration,
     pub(crate) launcher: Launcher,
+    pub(crate) helpers: Supervisor,
 }
 
 pub(crate) struct Compositor {
@@ -52,7 +58,14 @@ pub(crate) struct Compositor {
     pub(crate) xdg_shell_state: XdgShellState,
     pub(crate) seat_state: SeatState<Self>,
     pub(crate) seat: Seat<Self>,
+    pub(crate) protocols: DesktopProtocols,
     pub(crate) popups: PopupManager,
+    pub(crate) layer_focus: Option<WlSurface>,
+    pub(crate) drag_icon: Option<WlSurface>,
+    pub(crate) constraint_review_due: bool,
+    pub(crate) departures: Departures,
+    pub(crate) lock: SessionLock,
+    pub(crate) idle: IdleTracker,
     pub(crate) config: ValidatedConfig,
     pub(crate) config_source: ConfigSource,
     pub(crate) config_revision: u64,
@@ -66,6 +79,7 @@ pub(crate) struct Compositor {
     #[cfg(feature = "drm")]
     pub(crate) dmabuf: DmabufImports,
     pub(crate) launcher: Launcher,
+    pub(crate) helpers: Supervisor,
     pub(crate) desktop: DesktopState,
     pub(crate) windows: WindowRegistry,
     pub(crate) outputs: OutputRegistry,
@@ -92,6 +106,7 @@ impl Compositor {
             transaction_timeout,
             output_confirmation,
             launcher,
+            helpers,
         } = settings;
         let compositor_state = CompositorState::new::<Self>(&display_handle);
         let shm_state = ShmState::new::<Self>(&display_handle, Vec::new());
@@ -103,6 +118,7 @@ impl Compositor {
         ViewporterState::new::<Self>(&display_handle);
         FractionalScaleManagerState::new::<Self>(&display_handle);
         OutputManagerState::new_with_xdg_output::<Self>(&display_handle);
+        let protocols = DesktopProtocols::new(&display_handle);
         let mut seat_state = SeatState::new();
         let mut seat = seat_state.new_wl_seat(&display_handle, SEAT_NAME);
         let keyboard = &config.input().keyboard;
@@ -129,7 +145,14 @@ impl Compositor {
             xdg_shell_state,
             seat_state,
             seat,
+            protocols,
             popups: PopupManager::default(),
+            layer_focus: None,
+            drag_icon: None,
+            constraint_review_due: false,
+            departures: Departures::default(),
+            lock: SessionLock::default(),
+            idle: IdleTracker::default(),
             config,
             config_source,
             config_revision: 0,
@@ -143,6 +166,7 @@ impl Compositor {
             #[cfg(feature = "drm")]
             dmabuf: DmabufImports::default(),
             launcher,
+            helpers,
             desktop,
             windows: WindowRegistry::default(),
             outputs: OutputRegistry::default(),

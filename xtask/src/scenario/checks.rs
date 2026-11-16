@@ -13,7 +13,8 @@ impl Scenario {
             Self::NestedLifecycle
             | Self::NestedInput
             | Self::ConfigureTimeout
-            | Self::IpcBackpressure => &[],
+            | Self::IpcBackpressure
+            | Self::ConfigReloadAtomicity => &[],
             Self::OutputHotplug => &[
                 Check {
                     action: "unplug a monitor that shows windows, then plug it back",
@@ -79,6 +80,77 @@ impl Scenario {
                     disruptive: false,
                 },
             ],
+            Self::ReleaseJourney => &[
+                Check {
+                    action: "install the package on a clean machine and start the Tilling session from the display manager",
+                    expectation: "the session comes up and `Super+Return` opens the configured terminal",
+                    disruptive: true,
+                },
+                Check {
+                    action: "open three windows and go through the layouts with `Super+space`",
+                    expectation: "each layout shows the windows without overlap and focus follows `Super+h` and `Super+l`",
+                    disruptive: false,
+                },
+                Check {
+                    action: "put a syntax error in the configuration file and press `Super+Shift+c`",
+                    expectation: "every binding still works and `tillingctl config reload` names the broken line",
+                    disruptive: false,
+                },
+                Check {
+                    action: "press `Super+Shift+e`",
+                    expectation: "the session ends, every client exits and the display manager returns",
+                    disruptive: true,
+                },
+                Check {
+                    action: "remove the package",
+                    expectation: "no file of the package remains and `~/.config/tilling` is untouched",
+                    disruptive: false,
+                },
+            ],
+            Self::DesktopIntegration => &[
+                Check {
+                    action: "start a panel on the top edge, open two windows and make one fullscreen",
+                    expectation: "the windows tile below the panel and the fullscreen window covers it",
+                    disruptive: false,
+                },
+                Check {
+                    action: "copy text in one application, paste it in another and drag a file between two windows",
+                    expectation: "the text arrives and the drop lands on the window under the pointer",
+                    disruptive: false,
+                },
+                Check {
+                    action: "type in a text field with an input method started as a helper with `input-method`",
+                    expectation: "the composition shows at the text cursor and the committed text arrives once",
+                    disruptive: false,
+                },
+                Check {
+                    action: "start a game that locks the pointer and switch to another workspace",
+                    expectation: "the pointer moves freely again as soon as the game loses the keyboard",
+                    disruptive: false,
+                },
+            ],
+            Self::SessionLockFailures => &[
+                Check {
+                    action: "run `tillingctl lock` over a fullscreen window with an open menu",
+                    expectation: "every output shows only the locker and no key reaches an application",
+                    disruptive: false,
+                },
+                Check {
+                    action: "kill the locker from another virtual terminal",
+                    expectation: "the session stays covered and a new locker asks for the password",
+                    disruptive: true,
+                },
+                Check {
+                    action: "plug a monitor while the session is locked",
+                    expectation: "the new monitor shows the locker and never a window",
+                    disruptive: true,
+                },
+                Check {
+                    action: "suspend the machine while locked and resume it",
+                    expectation: "the locker is on screen before any window can be seen",
+                    disruptive: true,
+                },
+            ],
         }
     }
 }
@@ -97,6 +169,9 @@ mod tests {
             Scenario::FractionalScale,
             Scenario::SeatReactivation,
             Scenario::RendererFallback,
+            Scenario::ReleaseJourney,
+            Scenario::DesktopIntegration,
+            Scenario::SessionLockFailures,
         ];
 
         for scenario in Scenario::value_variants() {
@@ -126,5 +201,8 @@ mod tests {
         assert_eq!(disruptive(Scenario::SeatReactivation), 2);
         assert_eq!(disruptive(Scenario::OutputRollback), 1);
         assert_eq!(disruptive(Scenario::FractionalScale), 0);
+        assert_eq!(disruptive(Scenario::ReleaseJourney), 2);
+        assert_eq!(disruptive(Scenario::DesktopIntegration), 0);
+        assert_eq!(disruptive(Scenario::SessionLockFailures), 3);
     }
 }

@@ -1,21 +1,58 @@
+use std::io;
+use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use smithay::reexports::calloop::generic::Generic;
 use smithay::reexports::calloop::{Interest, LoopHandle, Mode, PostAction};
-use smithay::reexports::wayland_server::backend::ClientData;
+use smithay::reexports::wayland_server::backend::{ClientData, ClientId, DisconnectReason};
 use smithay::reexports::wayland_server::{Display, ListeningSocket};
 use smithay::wayland::compositor::CompositorClientState;
 
 use super::{Compositor, Runtime};
 use crate::error::CompositorError;
+use crate::security::Privileges;
 
 #[derive(Debug, Default)]
 pub(crate) struct ClientState {
     pub(crate) compositor_state: CompositorClientState,
+    pub(crate) privileges: Privileges,
+    departures: Departures,
 }
 
-impl ClientData for ClientState {}
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Departures(Arc<AtomicBool>);
+
+impl ClientData for ClientState {
+    fn disconnected(&self, _client: ClientId, _reason: DisconnectReason) {
+        self.departures.0.store(true, Ordering::Relaxed);
+    }
+}
+
+impl Departures {
+    pub(crate) fn take(&self) -> bool {
+        self.0.swap(false, Ordering::Relaxed)
+    }
+}
+
+impl Compositor {
+    pub(crate) fn connect_privileged(&mut self, privileges: Privileges) -> io::Result<UnixStream> {
+        let (accepted, offered) = UnixStream::pair()?;
+        self.accept_client(accepted, privileges)?;
+        Ok(offered)
+    }
+
+    fn accept_client(&mut self, stream: UnixStream, privileges: Privileges) -> io::Result<()> {
+        let client = Arc::new(ClientState {
+            compositor_state: CompositorClientState::default(),
+            privileges,
+            departures: self.departures.clone(),
+        });
+        self.display_handle.insert_client(stream, client)?;
+        Ok(())
+    }
+}
 
 pub(crate) fn listen(
     handle: &LoopHandle<'static, Runtime>,
@@ -31,12 +68,10 @@ pub(crate) fn listen(
     handle
         .insert_source(source, |_, socket, runtime| {
             while let Some(stream) = socket.accept()? {
-                let client = Arc::new(ClientState::default());
-                let inserted = runtime
+                let accepted = runtime
                     .compositor
-                    .display_handle
-                    .insert_client(stream, client);
-                if let Err(error) = inserted {
+                    .accept_client(stream, Privileges::default());
+                if let Err(error) = accepted {
                     tracing::warn!(%error, "refuse wayland client");
                 }
             }

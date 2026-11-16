@@ -1,4 +1,4 @@
-use crate::geometry::{LogicalRect, Scale};
+use crate::geometry::{Insets, LogicalRect, Scale};
 use crate::identity::{OutputId, WindowId, WorkspaceId};
 use crate::layout::{Direction, LayoutKind};
 use crate::window::{WindowMetadata, WindowMode};
@@ -14,6 +14,10 @@ pub enum Command {
         output: OutputId,
         area: LogicalRect,
         scale: Scale,
+    },
+    ReserveOutputEdges {
+        output: OutputId,
+        edges: Insets,
     },
     RemoveOutput {
         output: OutputId,

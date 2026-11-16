@@ -148,7 +148,7 @@ fn command_issued_against_a_stale_revision_changes_nothing() {
 
 #[test]
 fn unknown_or_unavailable_requests_are_refused_with_their_reason() {
-    let harness = Harness::start();
+    let harness = Harness::start_with_config("schema_version = 1\n\n[session]\n");
     let mut control = harness.control();
     let before = harness.snapshot().revision;
     let nowhere = ResourceId {
@@ -173,7 +173,12 @@ fn unknown_or_unavailable_requests_are_refused_with_their_reason() {
         }
     );
     assert!(matches!(layout.unwrap(), Outcome::NotFound { .. }));
-    assert!(matches!(lock.unwrap(), Outcome::NotPermitted { .. }));
+    assert_eq!(
+        lock.unwrap(),
+        Outcome::NotPermitted {
+            message: "no locker is configured in `session.locker`".to_owned()
+        }
+    );
     assert_eq!(harness.snapshot().revision, before);
 }
 

@@ -34,6 +34,16 @@ pub enum ClientError {
     DestroyedPopup,
     #[error("sub-surface was already destroyed")]
     DestroyedSubsurface,
+    #[error("layer surface was already destroyed")]
+    DestroyedLayer,
+    #[error("no clipboard content is offered to this client")]
+    NoClipboardOffer,
+    #[error("this client holds no session lock")]
+    NoSessionLock,
+    #[error("open a pipe for a data transfer")]
+    Pipe(#[source] std::io::Error),
+    #[error("read the transferred data")]
+    Transfer(#[source] std::io::Error),
     #[error("no pointer button event was received yet")]
     NoButtonSerial,
     #[error("pointer has not entered a surface of this client")]

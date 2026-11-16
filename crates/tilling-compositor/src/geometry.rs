@@ -1,5 +1,13 @@
+use smithay::output::Output;
 use smithay::utils::{Logical, Point, Rectangle, Size};
 use tilling_core::geometry::LogicalRect;
+
+pub(crate) fn logical_size(output: &Output) -> Option<Size<i32, Logical>> {
+    let scale = output.current_scale().fractional_scale();
+    let mode = output.current_mode()?;
+    let oriented = output.current_transform().transform_size(mode.size);
+    Some(oriented.to_f64().to_logical(scale).to_i32_round())
+}
 
 pub(crate) fn rectangle(rect: LogicalRect) -> Rectangle<i32, Logical> {
     Rectangle::new(Point::from((rect.x(), rect.y())), size(rect))

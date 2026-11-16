@@ -1,5 +1,6 @@
 mod arguments;
 mod commands;
+mod completions;
 mod output;
 mod target;
 mod topics;

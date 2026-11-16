@@ -1,0 +1,6 @@
+[Unit]
+Description=Tilling session
+Documentation=https://github.com/luas-graphicss/Tilling-Window-Manager
+BindsTo=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target

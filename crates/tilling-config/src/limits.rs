@@ -4,6 +4,7 @@ pub(crate) const MAX_WORKSPACES: usize = 64;
 pub(crate) const MAX_BINDINGS: usize = 512;
 pub(crate) const MAX_RULES: usize = 256;
 pub(crate) const MAX_OUTPUTS: usize = 16;
+pub(crate) const MAX_HELPERS: usize = 16;
 pub(crate) const MAX_OUTPUT_EDGE: u32 = 16_384;
 pub(crate) const MIN_REFRESH_HZ: f64 = 1.0;
 pub(crate) const MAX_REFRESH_HZ: f64 = 1_000.0;

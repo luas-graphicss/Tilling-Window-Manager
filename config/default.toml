@@ -24,9 +24,16 @@ disable_while_typing = true
 [applications]
 terminal = ["foot"]
 
+[session]
+locker = ["swaylock"]
+
 [[bindings]]
 keys = "Super+Return"
 action = "open-terminal"
+
+[[bindings]]
+keys = "Super+d"
+action = { spawn = ["fuzzel"] }
 
 [[bindings]]
 keys = "Super+Shift+q"
@@ -226,6 +233,10 @@ action = { move-to-workspace = "9" }
 [[bindings]]
 keys = "Super+Shift+c"
 action = "reload-config"
+
+[[bindings]]
+keys = "Super+Escape"
+action = "lock"
 
 [[bindings]]
 keys = "Super+Shift+e"

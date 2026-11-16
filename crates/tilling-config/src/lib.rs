@@ -8,6 +8,7 @@ mod names;
 mod outputs;
 mod rules;
 mod schema;
+mod session;
 mod source;
 mod validation;
 
@@ -19,6 +20,7 @@ pub use layout::LayoutConfig;
 pub use limits::MAX_CONFIG_BYTES;
 pub use outputs::{ModeConfig, OutputConfig, OutputTransform, Position};
 pub use rules::{RuleMode, RuleOutcome, WindowRules};
+pub use session::{Helper, HelperCapability, RestartPolicy, SessionConfig};
 pub use source::{ConfigSource, Environment};
 pub use validation::ValidatedConfig;
 

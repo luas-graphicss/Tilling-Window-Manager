@@ -3,10 +3,13 @@ use std::time::Duration;
 
 use tilling_config::{ConfigSource, ValidatedConfig};
 
+use crate::helpers::SessionServices;
+
 const DEFAULT_OUTPUT_WIDTH: u32 = 1280;
 const DEFAULT_OUTPUT_HEIGHT: u32 = 720;
 const DEFAULT_TRANSACTION_TIMEOUT: Duration = Duration::from_millis(200);
 const DEFAULT_OUTPUT_CONFIRMATION: Duration = Duration::from_secs(15);
+const DEFAULT_HELPER_RESTART_DELAY: Duration = Duration::from_secs(1);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BackendKind {
@@ -43,6 +46,8 @@ pub struct Options {
     pub output: VirtualOutput,
     pub transaction_timeout: Duration,
     pub output_confirmation: Duration,
+    pub helper_restart_delay: Duration,
+    pub session_services: Option<SessionServices>,
 }
 
 impl Options {
@@ -66,6 +71,8 @@ impl Options {
             },
             transaction_timeout: DEFAULT_TRANSACTION_TIMEOUT,
             output_confirmation: DEFAULT_OUTPUT_CONFIRMATION,
+            helper_restart_delay: DEFAULT_HELPER_RESTART_DELAY,
+            session_services: None,
         }
     }
 }
