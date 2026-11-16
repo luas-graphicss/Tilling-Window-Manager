@@ -38,6 +38,7 @@ timeout "$EXIT_LIMIT_SECONDS" tail --pid="$COMPOSITOR" --follow /dev/null
 wait "$COMPOSITOR"
 
 apt-get remove --yes tilling
+hash -r
 if command -v tilling tillingctl; then
   echo "the programs are still installed after removing the package" >&2
   exit 1
