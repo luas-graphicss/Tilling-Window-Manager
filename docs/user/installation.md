@@ -2,7 +2,7 @@
 
 Tilling ships two programs: `tilling`, the compositor, and `tillingctl`, the client of its control socket. This page covers building the packages, installing them, starting a session and removing everything again.
 
-No package has been installed on a clean Ubuntu or Arch machine yet. The archives are checked by the tests of `xtask` and by listing their contents; treat the steps below as the intended procedure, and report what differs.
+The CI installs the `.deb` in a clean Ubuntu 24.04 container on every push to `main`: `apt` resolves the dependencies the package declares, a headless session starts and answers `tillingctl`, and the package is removed again. Nobody has started a session on a display from an installed package, and the Arch package has not been built. Treat those steps as the intended procedure, and report what differs.
 
 ## Building the packages
 
@@ -39,7 +39,7 @@ Build the `.deb` on the oldest release you want it to run on. The binaries link 
 
     cd packaging/arch && makepkg --syncdeps --install
 
-It needs a `v0.1.0` tag on the repository, which does not exist yet.
+It downloads the source archive of the `v0.1.0` tag. `sha256sums` is still `SKIP`, so `makepkg` does not verify that archive.
 
 ## Any distribution
 
