@@ -107,8 +107,9 @@ impl Compositor {
             }
         };
         for request in requests {
-            let response = self.answer(id, request);
-            self.reply_to(id, &ServerMessage::Response(response));
+            if let Some(response) = self.answer(id, request) {
+                self.reply_to(id, &ServerMessage::Response(response));
+            }
         }
         self.flush_peer(id);
         PostAction::Continue

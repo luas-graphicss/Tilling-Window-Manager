@@ -59,6 +59,7 @@ impl Runtime {
             config_source: options.config_source,
             transaction_timeout: options.transaction_timeout,
             output_confirmation: options.output_confirmation,
+            lock_confirmation: options.lock_confirmation,
             launcher: Launcher::new(environment.clone()),
             helpers: Supervisor::new(environment, options.helper_restart_delay),
         };

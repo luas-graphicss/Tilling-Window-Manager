@@ -33,7 +33,10 @@ impl From<LockRequestError> for Refusal {
     fn from(error: LockRequestError) -> Self {
         match error {
             LockRequestError::NoLocker => Self::NotPermitted(error.to_string()),
-            LockRequestError::Launch { .. } => Self::invalid_because(&error),
+            LockRequestError::Launch { .. }
+            | LockRequestError::NeverLocked
+            | LockRequestError::TimedOut(_)
+            | LockRequestError::Crowded => Self::invalid_because(&error),
         }
     }
 }
