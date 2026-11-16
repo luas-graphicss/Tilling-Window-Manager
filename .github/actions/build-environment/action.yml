@@ -1,0 +1,31 @@
+name: Build environment
+description: Install the system libraries, the pinned toolchain and the build cache of one job
+
+inputs:
+  cache-scope:
+    description: Name that keeps the cache of one job apart from the others
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install the system libraries
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install --yes --no-install-recommends \
+          libdrm-dev libegl1-mesa-dev libgbm-dev libinput-dev libpixman-1-dev \
+          libseat-dev libudev-dev libwayland-dev libxkbcommon-dev pkg-config
+
+    - name: Install the pinned toolchain
+      shell: bash
+      run: rustup toolchain install
+
+    - name: Restore the build cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+          target
+        key: ${{ inputs.cache-scope }}-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml', 'Cargo.lock') }}
