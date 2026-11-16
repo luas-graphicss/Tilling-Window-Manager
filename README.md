@@ -4,7 +4,7 @@ Tilling is a tiling Wayland compositor for Linux, written in Rust on top of Smit
 
 ## Status
 
-Version 0.1.0 is a development version. It is not ready to be the only session on a machine.
+Version 0.1.0 is the first release, published as a pre-release. It is a development version and is not ready to be the only session on a machine.
 
 What works and is covered by the tests in this repository:
 
@@ -21,13 +21,27 @@ What does not exist yet: screen capture, so the portals for screenshots and scre
 
 The lock has only run in the tests, with a stand-in locker. Read [docs/security](docs/security/README.md) before leaving a machine unattended in a Tilling session.
 
+### Known problems in 0.1.0
+
+The automated tests pass on this version and do not catch the problems below. They showed up when a session was used by hand.
+
+- Programs started from the session, such as the terminal, the launcher, the locker and the helpers, inherit a signal mask that blocks SIGINT and SIGTERM. Ctrl+C and `kill` do nothing to them; `kill -9` does.
+- A debug build, which is what `cargo run` produces without `--release`, aborts when a client sends damage with a negative size, and every window of the session goes with it. Release builds are not affected.
+- The `nested` backend drew the session upside down on software GL, and nobody has looked at it on a GPU. `tillingctl output set 0:0 --transform flipped-180` turns the picture upright; [docs/outputs.md](docs/outputs.md) explains how to keep the change.
+- `tillingctl lock` answers `accepted` as soon as the locker process starts, even when the locker never covers the screen. Look at the screen before walking away.
+
 ## Requirements
 
 - Linux on x86_64.
 - Rust 1.100.0. `rust-toolchain.toml` pins it, so `rustup` installs it on the first build.
 - libseat, libinput, libudev, libgbm, libxkbcommon, libwayland and an EGL driver with GLES 2, with their development files and `pkg-config`.
 
-On Amazon Linux 2023, where the checks of this repository were last run, this is enough:
+On Ubuntu 24.04, the system the CI builds and tests on:
+
+    sudo apt install libdrm-dev libegl1-mesa-dev libgbm-dev libinput-dev libpixman-1-dev \
+        libseat-dev libudev-dev libwayland-dev libxkbcommon-dev pkg-config
+
+On Amazon Linux 2023:
 
     sudo dnf install wayland-devel libxkbcommon-devel mesa-libgbm-devel mesa-libEGL-devel \
         libdrm-devel systemd-devel libinput-devel libseat-devel pixman-devel clang
@@ -36,16 +50,42 @@ On Amazon Linux 2023, where the checks of this repository were last run, this is
 
 Inside another Wayland session, as a window:
 
-    cargo run -p tilling
+    cargo run --release -p tilling
 
 From a virtual terminal, on the display:
 
     cargo run --release -p tilling -- --backend drm
 
-`Super+Return` opens the terminal named in the configuration, `foot` unless you change it. `Super+Shift+q` closes the focused window and `Super+Shift+e` ends the session. From another terminal:
+From another terminal, `tillingctl` reads and changes the session:
 
     cargo run -p tillingctl -- get windows
     cargo run -p tillingctl -- layout set master-stack
+
+### Default key bindings
+
+[config/default.toml](config/default.toml) defines them, and your own configuration replaces them.
+
+| Keys | Action |
+| --- | --- |
+| `Super+Return` | Open the terminal, `foot` unless you change it |
+| `Super+d` | Open the launcher, `fuzzel` |
+| `Super+Shift+q` | Close the focused window |
+| `Super+h`, `j`, `k`, `l` | Focus the window to the left, below, above, to the right |
+| `Super+Shift+h`, `j`, `k`, `l` | Move the focused window in that direction |
+| `Super+Ctrl+h`, `j`, `k`, `l` | Focus the output in that direction |
+| `Super+Ctrl+Shift+h`, `j`, `k`, `l` | Move the focused window to that output |
+| `Super+f` | Toggle fullscreen |
+| `Super+Shift+space` | Toggle floating |
+| `Super+Shift+minus`, `Super+minus` | Send the window to the scratchpad, bring one back |
+| `Super+space` | Cycle the layout |
+| `Super+b`, `Super+t`, `Super+m` | Choose `bsp`, `master-stack`, `monocle` |
+| `Super+e` | Turn the split of the tile |
+| `Super+r` | Enter the resize mode: `h` and `l` resize, `Escape` leaves |
+| `Super+1` to `Super+9` | Show that workspace |
+| `Super+Shift+1` to `Super+Shift+9` | Move the focused window to that workspace |
+| `Super+Shift+c` | Reload the configuration |
+| `Super+Escape` | Lock the session with `swaylock` |
+| `Super+Shift+e` | End the session |
 
 ## Configuration
 
@@ -58,6 +98,8 @@ A file that does not validate stops the start and prints the line and the reason
     cargo xtask package --target x86_64-unknown-linux-gnu
 
 builds the release binaries and writes a tarball, a `.deb`, checksums, an SBOM and a build record to `dist/`. [docs/user/installation.md](docs/user/installation.md) covers installing them, the session entry for display managers and removing the package.
+
+The release page carries the source of each version, without packages. The CI builds the same files on every push to `main` and keeps them as the `tilling-packages` artifact of the run.
 
 ## Documentation
 
@@ -72,7 +114,7 @@ builds the release binaries and writes a tarball, a `.deb`, checksums, an SBOM a
 | [docs/security](docs/security/README.md) | What is protected, what is not, reporting a vulnerability |
 | [docs/compatibility](docs/compatibility/README.md) | Versioning of the configuration and the protocol, supported platforms |
 | [docs/architecture](docs/architecture/README.md) | Crates and who owns which state |
-| [docs/development](docs/development/README.md) | Checks, scenarios, fuzzing, packaging |
+| [docs/development](docs/development/README.md) | Checks, scenarios, fuzzing, packaging, continuous integration |
 
 ## Development
 
@@ -80,6 +122,8 @@ builds the release binaries and writes a tarball, a `.deb`, checksums, an SBOM a
     cargo xtask check --profile full
 
 The first formats, lints and tests. The second adds the optimized tests, the documentation, the release build, `cargo audit` and `cargo deny`.
+
+GitHub Actions runs three jobs on every pull request and on every push to `main`: the full profile, every scenario without an operator, and the packages, which are installed in a clean Ubuntu 24.04 container where a headless session has to start and answer `tillingctl`. [docs/development](docs/development/README.md#continuous-integration) has the details.
 
 ## License
 
