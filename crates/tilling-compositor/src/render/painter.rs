@@ -9,6 +9,7 @@ use super::cursor::cursor_elements;
 use super::curtain::Curtain;
 use super::drag_icon::drag_icon_elements;
 use super::elements::{SceneElement, content_elements, popup_elements};
+use super::framebuffer::FramebufferOrigin;
 use super::layers::layer_elements;
 use crate::runtime::Compositor;
 use crate::scene::SceneLayer;
@@ -27,6 +28,7 @@ pub(crate) struct SceneView {
 #[derive(Debug)]
 pub(crate) struct Painter {
     view: SceneView,
+    origin: FramebufferOrigin,
     damage: OutputDamageTracker,
 }
 
@@ -97,10 +99,11 @@ impl SceneView {
 }
 
 impl Painter {
-    pub(crate) fn new(output: &Output) -> Self {
+    pub(crate) fn new(output: &Output, origin: FramebufferOrigin) -> Self {
         Self {
             view: SceneView::new(output),
-            damage: OutputDamageTracker::from_output(output),
+            origin,
+            damage: OutputDamageTracker::from_mode_source(origin.mode_source(output)),
         }
     }
 
@@ -115,10 +118,18 @@ impl Painter {
         R: Renderer + ImportAll + ImportMem,
         R::TextureId: Clone + 'static,
     {
+        self.follow_output();
         let elements = self.view.elements(compositor, renderer);
         let painted =
             self.damage
                 .render_output(renderer, framebuffer, buffer_age, &elements, BACKGROUND)?;
         Ok(painted.damage.cloned())
+    }
+
+    fn follow_output(&mut self) {
+        let wanted = self.origin.mode_source(&self.view.output);
+        if *self.damage.mode() != wanted {
+            self.damage = OutputDamageTracker::from_mode_source(wanted);
+        }
     }
 }

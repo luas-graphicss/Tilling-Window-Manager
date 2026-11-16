@@ -23,12 +23,12 @@ The lock has only run in the tests, with a stand-in locker. Read [docs/security]
 
 ### Known problems in 0.1.0
 
-The automated tests pass on this version and do not catch the problems below. They showed up when a session was used by hand.
+A session used by hand showed four problems that the automated tests of 0.1.0 did not catch. They are fixed on `main`; 0.1.0 itself still has them.
 
-- Programs started from the session, such as the terminal, the launcher, the locker and the helpers, inherit a signal mask that blocks SIGINT and SIGTERM. Ctrl+C and `kill` do nothing to them; `kill -9` does.
-- A debug build, which is what `cargo run` produces without `--release`, aborts when a client sends damage with a negative size, and every window of the session goes with it. Release builds are not affected.
-- The `nested` backend drew the session upside down on software GL, and nobody has looked at it on a GPU. `tillingctl output set 0:0 --transform flipped-180` turns the picture upright; [docs/outputs.md](docs/outputs.md) explains how to keep the change.
-- `tillingctl lock` answers `accepted` as soon as the locker process starts, even when the locker never covers the screen. Look at the screen before walking away.
+- Programs started from the session, such as the terminal, the launcher, the locker and the helpers, inherited a signal mask that blocks SIGINT and SIGTERM. Ctrl+C and `kill` did nothing to them. They now start with no signal blocked.
+- A debug build, which is what `cargo run` produces without `--release`, aborted when a client sent damage with a negative size, and every window of the session went with it. Debug builds now treat the request the way release builds do.
+- The `nested` backend drew the session upside down. It is upright now inside weston on software GL; nobody has looked at it on a GPU. An `[[outputs]]` profile that carries `transform = "flipped-180"` as a workaround has to lose it.
+- `tillingctl lock` answered `accepted` as soon as the locker process started, even when the locker never covered the screen. It now answers once the session is locked and fails when the locker ends or does not lock within four seconds.
 
 ## Requirements
 

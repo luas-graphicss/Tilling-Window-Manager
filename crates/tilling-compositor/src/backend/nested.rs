@@ -8,7 +8,7 @@ use smithay::reexports::winit::window::Window;
 use crate::error::{CompositorError, cause_chain};
 use crate::options::VirtualOutput;
 use crate::output::OutputDescription;
-use crate::render::Painter;
+use crate::render::{FramebufferOrigin, Painter};
 use crate::runtime::Compositor;
 
 const REFRESH_MILLIHERTZ: i32 = 60_000;
@@ -44,7 +44,7 @@ impl NestedBackend {
             .map_err(|error| CompositorError::EventSource(error.error))?;
         compositor.demand_frame();
         Ok(Self {
-            painter: Painter::new(&output),
+            painter: Painter::new(&output, FramebufferOrigin::BottomLeft),
             output,
             host,
             host_cursor: Some(CursorIcon::Default),

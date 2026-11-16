@@ -19,7 +19,7 @@ pub enum CompositorError {
     #[error("dispatch the event loop")]
     Dispatch(#[source] calloop::Error),
     #[error("watch termination signals")]
-    Signals(#[source] calloop::Error),
+    Signals(#[source] std::io::Error),
     #[error("create the wayland display")]
     Display(#[source] InitError),
     #[error("duplicate the wayland display descriptor")]

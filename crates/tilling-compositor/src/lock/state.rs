@@ -28,6 +28,10 @@ impl SessionLock {
         self.holder.as_ref().is_some_and(Resource::is_alive)
     }
 
+    pub(crate) fn is_confirmed(&self) -> bool {
+        self.is_held() && self.unconfirmed.is_none()
+    }
+
     pub(crate) fn engage(&mut self, uncovered: Vec<Output>) {
         if !self.is_engaged() {
             self.stage = Stage::Curtaining(uncovered);

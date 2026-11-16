@@ -10,6 +10,7 @@ const DEFAULT_OUTPUT_HEIGHT: u32 = 720;
 const DEFAULT_TRANSACTION_TIMEOUT: Duration = Duration::from_millis(200);
 const DEFAULT_OUTPUT_CONFIRMATION: Duration = Duration::from_secs(15);
 const DEFAULT_HELPER_RESTART_DELAY: Duration = Duration::from_secs(1);
+const DEFAULT_LOCK_CONFIRMATION: Duration = Duration::from_secs(4);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BackendKind {
@@ -47,6 +48,7 @@ pub struct Options {
     pub transaction_timeout: Duration,
     pub output_confirmation: Duration,
     pub helper_restart_delay: Duration,
+    pub lock_confirmation: Duration,
     pub session_services: Option<SessionServices>,
 }
 
@@ -72,6 +74,7 @@ impl Options {
             transaction_timeout: DEFAULT_TRANSACTION_TIMEOUT,
             output_confirmation: DEFAULT_OUTPUT_CONFIRMATION,
             helper_restart_delay: DEFAULT_HELPER_RESTART_DELAY,
+            lock_confirmation: DEFAULT_LOCK_CONFIRMATION,
             session_services: None,
         }
     }

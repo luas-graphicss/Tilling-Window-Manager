@@ -15,6 +15,8 @@ starts the program named in `session.locker`, and so does the `lock` action, bou
 
 The locker has to speak `ext-session-lock-v1`; `swaylock` and `waylock` do. It is the only program that receives that protocol. The request is refused when no locker is named, and an empty `[session]` table names none.
 
+`tillingctl lock` answers `accepted` once the locker covers every output. It answers with an error and a status other than 0 when the locker cannot be started, when it ends without locking, and when it has not locked after four seconds; in the last case the locker keeps running. A locker that ends without locking is also written to the log, whichever way the lock was asked for.
+
 When the locker dies while the session is locked, the session stays locked and a new locker is started. To lock after a time without input, run an idle daemon as a helper and let it call `tillingctl lock`:
 
     [[helpers]]

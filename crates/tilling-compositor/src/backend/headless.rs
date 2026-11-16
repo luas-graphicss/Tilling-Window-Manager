@@ -9,7 +9,7 @@ use smithay::utils::{Physical, Size};
 use crate::error::CompositorError;
 use crate::options::VirtualOutput;
 use crate::output::OutputDescription;
-use crate::render::Painter;
+use crate::render::{FramebufferOrigin, Painter};
 use crate::runtime::{Compositor, Runtime};
 
 const REFRESH_MILLIHERTZ: i32 = 60_000;
@@ -60,7 +60,7 @@ impl HeadlessBackend {
         );
         let output = compositor.attach_output(description)?;
         self.screens.push(Screen {
-            painter: Painter::new(&output),
+            painter: Painter::new(&output, FramebufferOrigin::TopLeft),
             output,
         });
         Ok(())

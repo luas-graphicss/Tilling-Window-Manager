@@ -17,6 +17,7 @@ const LOCKER_LOG: &str = "locker.log";
 const LAUNCH_NOTICE: &str = "running 1 test";
 const STEP: Duration = Duration::from_millis(5);
 const WAIT_LIMIT: Duration = Duration::from_secs(5);
+const SHORT_CONFIRMATION: Duration = Duration::from_millis(150);
 
 fn session_with_stand_in_locker() -> Harness {
     let program =
@@ -83,13 +84,24 @@ fn stand_in_locker() {
     }
 }
 
+fn session_with_locker(command: &str) -> String {
+    format!("schema_version = 1\n\n[session]\nlocker = {command}\n")
+}
+
+fn refused_as_invalid(outcome: Outcome) -> String {
+    let Outcome::ValidationError { message } = outcome else {
+        panic!("expected the lock request to be refused, got {outcome:?}");
+    };
+    message
+}
+
 #[test]
-fn a_lock_request_starts_the_locker_and_the_locker_ends_the_lock() {
+fn a_lock_request_is_answered_once_the_locker_covers_the_session() {
     let harness = session_with_stand_in_locker();
     let mut control = harness.control();
 
     let requested = control.call(Call::RequestLock, None).unwrap();
-    let locked = harness.wait_until("the locker covers the session", |snapshot| snapshot.locked);
+    let locked = harness.snapshot();
     let repeated = control.call(Call::RequestLock, None).unwrap();
     signal(&harness, UNLOCK_SIGNAL);
     let unlocked = harness.wait_until("the locker releases the session", |snapshot| {
@@ -125,19 +137,47 @@ fn a_locker_that_dies_is_replaced_while_the_session_stays_locked() {
 
 #[test]
 fn a_locker_that_cannot_start_is_reported_and_nothing_locks() {
-    let harness = Harness::start_from_file(
-        "schema_version = 1\n\n[session]\nlocker = ['/nonexistent/tilling-test-locker']\n",
-    );
+    let harness =
+        Harness::start_from_file(&session_with_locker("['/nonexistent/tilling-test-locker']"));
     let mut control = harness.control();
 
     let outcome = control.call(Call::RequestLock, None).unwrap();
 
-    let Outcome::ValidationError { message } = outcome else {
-        panic!("expected the launch to be refused, got {outcome:?}");
-    };
+    let message = refused_as_invalid(outcome);
     assert!(
         message.starts_with("start the locker `/nonexistent/tilling-test-locker`"),
         "{message}"
+    );
+    assert!(!harness.snapshot().locked);
+}
+
+#[test]
+fn a_locker_that_ends_without_locking_is_reported_and_nothing_locks() {
+    let harness = Harness::start_from_file(&session_with_locker("['true']"));
+    let mut control = harness.control();
+
+    let outcome = control.call(Call::RequestLock, None).unwrap();
+
+    assert_eq!(
+        refused_as_invalid(outcome),
+        "the locker ended without locking the session"
+    );
+    assert!(!harness.snapshot().locked);
+}
+
+#[test]
+fn a_locker_that_never_locks_is_reported_after_the_limit() {
+    let harness =
+        Harness::start_from_file_with(&session_with_locker("['sleep', '600']"), |options| {
+            options.lock_confirmation = SHORT_CONFIRMATION;
+        });
+    let mut control = harness.control();
+
+    let outcome = control.call(Call::RequestLock, None).unwrap();
+
+    assert_eq!(
+        refused_as_invalid(outcome),
+        "the locker did not lock the session within 150ms"
     );
     assert!(!harness.snapshot().locked);
 }

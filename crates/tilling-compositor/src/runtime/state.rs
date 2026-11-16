@@ -20,7 +20,7 @@ use tilling_config::{ConfigSource, DEFAULT_MODE, ValidatedConfig};
 use tilling_core::DesktopState;
 
 use super::{Departures, Runtime};
-use crate::control::ControlPeers;
+use crate::control::{ControlPeers, LockRequests};
 use crate::desktop::initial_desktop;
 use crate::error::CompositorError;
 use crate::helpers::Supervisor;
@@ -44,6 +44,7 @@ pub(crate) struct Settings {
     pub(crate) config_source: ConfigSource,
     pub(crate) transaction_timeout: Duration,
     pub(crate) output_confirmation: Duration,
+    pub(crate) lock_confirmation: Duration,
     pub(crate) launcher: Launcher,
     pub(crate) helpers: Supervisor,
 }
@@ -89,6 +90,8 @@ pub(crate) struct Compositor {
     pub(crate) scene: Scene,
     pub(crate) transactions: Coordinator,
     pub(crate) control: ControlPeers,
+    pub(crate) lock_requests: LockRequests,
+    pub(crate) lock_confirmation: Duration,
     pub(crate) frames: FrameStats,
     frame_demanded: bool,
 }
@@ -105,6 +108,7 @@ impl Compositor {
             config_source,
             transaction_timeout,
             output_confirmation,
+            lock_confirmation,
             launcher,
             helpers,
         } = settings;
@@ -176,6 +180,8 @@ impl Compositor {
             scene: Scene::default(),
             transactions: Coordinator::new(transaction_timeout),
             control: ControlPeers::default(),
+            lock_requests: LockRequests::default(),
+            lock_confirmation,
             frames: FrameStats::default(),
             frame_demanded: false,
         })

@@ -15,25 +15,32 @@ const EVENTS_NOT_NEGOTIATED: &str = "the events capability was not negotiated";
 const NOWHERE_TO_FLOAT: &str = "window is not on a workspace shown by an output";
 
 impl Compositor {
-    pub(super) fn answer(&mut self, peer: PeerId, request: Request) -> Response {
+    pub(super) fn answer(&mut self, peer: PeerId, request: Request) -> Option<Response> {
         let current_revision = self.desktop.revision();
+        let request_id = request.request_id;
         let outcome = match request.expected_revision {
             Some(expected) if expected != current_revision => {
                 Outcome::RevisionConflict { current_revision }
             }
-            _ => match self.perform_call(peer, request.call) {
-                Ok(result) => Outcome::Success { result },
+            _ => match self.perform_call(peer, request_id, request.call) {
+                Ok(Some(result)) => Outcome::Success { result },
+                Ok(None) => return None,
                 Err(refusal) => refusal.into(),
             },
         };
-        Response {
-            request_id: request.request_id,
+        Some(Response {
+            request_id,
             outcome,
-        }
+        })
     }
 
-    fn perform_call(&mut self, peer: PeerId, call: Call) -> Result<Reply, Refusal> {
-        match call {
+    fn perform_call(
+        &mut self,
+        peer: PeerId,
+        request_id: u64,
+        call: Call,
+    ) -> Result<Option<Reply>, Refusal> {
+        let reply = match call {
             Call::GetVersion => Ok(Reply::Version(VersionInfo {
                 compositor: env!("CARGO_PKG_VERSION").to_owned(),
                 protocol: PROTOCOL_VERSION,
@@ -74,16 +81,14 @@ impl Compositor {
                     .map_err(|error| Refusal::invalid_because(&error))?;
                 Ok(self.accepted())
             }
-            Call::RequestLock => {
-                self.request_lock()?;
-                Ok(self.accepted())
-            }
+            Call::RequestLock => return self.answer_lock_request(peer, request_id),
             Call::Quit => {
                 self.stop();
                 Ok(self.accepted())
             }
             Call::Subscribe => self.subscribe(peer),
-        }
+        }?;
+        Ok(Some(reply))
     }
 
     fn accept(&mut self, command: Command) -> Result<Reply, Refusal> {

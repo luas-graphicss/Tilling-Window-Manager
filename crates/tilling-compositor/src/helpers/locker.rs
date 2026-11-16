@@ -1,7 +1,8 @@
 use std::io;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use super::process;
+use super::supervisor::LockerReview;
 use crate::error::cause_chain;
 use crate::runtime::Compositor;
 use crate::security::Capability;
@@ -16,6 +17,12 @@ pub(crate) enum LockRequestError {
         #[source]
         source: io::Error,
     },
+    #[error("the locker ended without locking the session")]
+    NeverLocked,
+    #[error("the locker did not lock the session within {0:?}")]
+    TimedOut(Duration),
+    #[error("too many lock requests are waiting for the locker")]
+    Crowded,
 }
 
 impl Compositor {
@@ -29,12 +36,22 @@ impl Compositor {
     pub(crate) fn review_locker(&mut self) {
         let engaged = self.lock.is_engaged();
         let held = self.lock.is_held();
-        if !self
-            .helpers
-            .locker_must_return(engaged, held, Instant::now())
-        {
-            return;
+        match self.helpers.review_locker(engaged, held, Instant::now()) {
+            LockerReview::Settled => {}
+            LockerReview::EndedBeforeLocking => self.report_locker_that_never_locked(),
+            LockerReview::MustReturn => self.replace_locker(),
         }
+        if self.lock.is_confirmed() {
+            self.accept_lock_requests();
+        }
+    }
+
+    fn report_locker_that_never_locked(&mut self) {
+        tracing::warn!("the locker ended without locking the session");
+        self.refuse_lock_requests(LockRequestError::NeverLocked);
+    }
+
+    fn replace_locker(&mut self) {
         if let Err(error) = self.launch_locker() {
             tracing::error!(
                 error = %cause_chain(&error),

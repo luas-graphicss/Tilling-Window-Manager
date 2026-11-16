@@ -36,6 +36,13 @@ enum LockerDuty {
     Guarding,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LockerReview {
+    Settled,
+    EndedBeforeLocking,
+    MustReturn,
+}
+
 #[derive(Debug)]
 pub(crate) struct Supervisor {
     environment: SessionEnvironment,
@@ -187,19 +194,30 @@ impl Supervisor {
         }
     }
 
-    pub(crate) fn locker_must_return(&mut self, engaged: bool, held: bool, now: Instant) -> bool {
+    pub(crate) fn review_locker(
+        &mut self,
+        engaged: bool,
+        held: bool,
+        now: Instant,
+    ) -> LockerReview {
         let running = self.locker_is_running();
-        self.locker_duty = match (self.locker_duty, engaged) {
+        let duty_before = self.locker_duty;
+        self.locker_duty = match (duty_before, engaged) {
             (LockerDuty::Requested | LockerDuty::Guarding, true) => LockerDuty::Guarding,
             (LockerDuty::Requested, false) if running => LockerDuty::Requested,
             (LockerDuty::Idle, _) | (LockerDuty::Requested | LockerDuty::Guarding, false) => {
                 LockerDuty::Idle
             }
         };
-        self.locker_duty == LockerDuty::Guarding
-            && !held
-            && !running
-            && self.locker_budget.spend(now)
+        if duty_before == LockerDuty::Requested && self.locker_duty == LockerDuty::Idle {
+            return LockerReview::EndedBeforeLocking;
+        }
+        let abandoned = self.locker_duty == LockerDuty::Guarding && !held && !running;
+        if abandoned && self.locker_budget.spend(now) {
+            LockerReview::MustReturn
+        } else {
+            LockerReview::Settled
+        }
     }
 
     fn knows(&self, definition: &Helper) -> bool {
@@ -274,9 +292,22 @@ mod tests {
     fn a_lock_held_by_someone_else_is_not_guarded() {
         let mut supervisor = supervisor();
 
-        let abandoned = supervisor.locker_must_return(true, false, Instant::now());
+        let review = supervisor.review_locker(true, false, Instant::now());
 
-        assert!(!abandoned);
+        assert_eq!(review, LockerReview::Settled);
+    }
+
+    #[test]
+    fn a_requested_locker_that_ends_before_the_session_locks_is_reported_once() {
+        let mut supervisor = supervisor();
+        let now = Instant::now();
+        supervisor.keep_locker(finished_program());
+
+        let ended = supervisor.review_locker(false, false, now);
+        let afterwards = supervisor.review_locker(false, false, now);
+
+        assert_eq!(ended, LockerReview::EndedBeforeLocking);
+        assert_eq!(afterwards, LockerReview::Settled);
     }
 
     #[test]
@@ -285,13 +316,21 @@ mod tests {
         let now = Instant::now();
         supervisor.keep_locker(finished_program());
 
-        let while_held = supervisor.locker_must_return(true, true, now);
-        let abandoned: Vec<bool> = (0..4)
-            .map(|_| supervisor.locker_must_return(true, false, now))
+        let while_held = supervisor.review_locker(true, true, now);
+        let abandoned: Vec<LockerReview> = (0..4)
+            .map(|_| supervisor.review_locker(true, false, now))
             .collect();
 
-        assert!(!while_held);
-        assert_eq!(abandoned, [true, true, true, false]);
+        assert_eq!(while_held, LockerReview::Settled);
+        assert_eq!(
+            abandoned,
+            [
+                LockerReview::MustReturn,
+                LockerReview::MustReturn,
+                LockerReview::MustReturn,
+                LockerReview::Settled
+            ]
+        );
     }
 
     #[test]
@@ -299,12 +338,12 @@ mod tests {
         let mut supervisor = supervisor();
         let now = Instant::now();
         supervisor.keep_locker(finished_program());
-        supervisor.locker_must_return(true, true, now);
+        supervisor.review_locker(true, true, now);
 
-        let after_unlock = supervisor.locker_must_return(false, false, now);
-        let locked_by_someone_else = supervisor.locker_must_return(true, false, now);
+        let after_unlock = supervisor.review_locker(false, false, now);
+        let locked_by_someone_else = supervisor.review_locker(true, false, now);
 
-        assert!(!after_unlock);
-        assert!(!locked_by_someone_else);
+        assert_eq!(after_unlock, LockerReview::Settled);
+        assert_eq!(locked_by_someone_else, LockerReview::Settled);
     }
 }

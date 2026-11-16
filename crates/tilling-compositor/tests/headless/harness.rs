@@ -43,6 +43,10 @@ impl Harness {
     }
 
     pub(crate) fn start_from_file(text: &str) -> Self {
+        Self::start_from_file_with(text, |_| {})
+    }
+
+    pub(crate) fn start_from_file_with(text: &str, adjust: impl FnOnce(&mut Options)) -> Self {
         let config = tilling_config::parse(text)
             .unwrap_or_else(|error| panic!("test configuration was rejected: {error}"));
         Self::launch(config, |options| {
@@ -51,6 +55,7 @@ impl Harness {
                 .unwrap_or_else(|error| panic!("test configuration was not written: {error}"));
             options.config_source = ConfigSource::File(path);
             options.helper_restart_delay = HELPER_RESTART_DELAY;
+            adjust(options);
         })
     }
 
