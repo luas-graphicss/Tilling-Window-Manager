@@ -15,6 +15,7 @@ const START_LIMIT: Duration = Duration::from_secs(20);
 const EXIT_LIMIT: Duration = Duration::from_secs(10);
 const CONTROL_TIMEOUT: Duration = Duration::from_secs(5);
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
+const CONFIG_FILE: &str = "config.toml";
 
 pub struct Instance {
     child: Child,
@@ -41,15 +42,39 @@ pub fn tilling(runtime_dir: &Path) -> Command {
     command
 }
 
+fn headless(runtime_dir: &Path) -> Command {
+    let mut command = tilling(runtime_dir);
+    command.args(["--backend", "headless", "--instance", INSTANCE]);
+    command
+}
+
 impl Instance {
     pub fn start_headless() -> Self {
         let runtime_dir = private_runtime_dir();
-        let child = tilling(runtime_dir.path())
-            .args(["--backend", "headless", "--instance", INSTANCE])
+        let command = headless(runtime_dir.path());
+        Self::spawn(command, runtime_dir)
+    }
+
+    pub fn start_headless_with_config(text: &str) -> Self {
+        let runtime_dir = private_runtime_dir();
+        let config = runtime_dir.path().join(CONFIG_FILE);
+        std::fs::write(&config, text)
+            .unwrap_or_else(|error| panic!("configuration was not written: {error}"));
+        let mut command = headless(runtime_dir.path());
+        command.arg("--config").arg(config);
+        Self::spawn(command, runtime_dir)
+    }
+
+    fn spawn(mut command: Command, runtime_dir: TempDir) -> Self {
+        let child = command
             .stderr(Stdio::null())
             .spawn()
             .unwrap_or_else(|error| panic!("tilling did not start: {error}"));
         Self { child, runtime_dir }
+    }
+
+    pub fn runtime_dir(&self) -> &Path {
+        self.runtime_dir.path()
     }
 
     pub fn wayland_socket(&self) -> PathBuf {
