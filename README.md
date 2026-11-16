@@ -27,7 +27,7 @@ A session used by hand showed four problems that the automated tests of 0.1.0 di
 
 - Programs started from the session, such as the terminal, the launcher, the locker and the helpers, inherited a signal mask that blocks SIGINT and SIGTERM. Ctrl+C and `kill` did nothing to them. They now start with no signal blocked.
 - A debug build, which is what `cargo run` produces without `--release`, aborted when a client sent damage with a negative size, and every window of the session went with it. Debug builds now treat the request the way release builds do.
-- The `nested` backend drew the session upside down. The fix is tested against the matrices of the renderer and has not been looked at on a screen yet. An `[[outputs]]` profile that carries `transform = "flipped-180"` as a workaround has to lose it.
+- The `nested` backend drew the session upside down. It is upright now inside weston on software GL; nobody has looked at it on a GPU. An `[[outputs]]` profile that carries `transform = "flipped-180"` as a workaround has to lose it.
 - `tillingctl lock` answered `accepted` as soon as the locker process started, even when the locker never covered the screen. It now answers once the session is locked and fails when the locker ends or does not lock within four seconds.
 
 ## Requirements
