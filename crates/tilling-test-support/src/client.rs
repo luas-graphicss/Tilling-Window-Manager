@@ -281,6 +281,16 @@ impl Client {
         Ok(())
     }
 
+    pub fn damage(
+        &mut self,
+        toplevel: ToplevelId,
+        width: i32,
+        height: i32,
+    ) -> Result<(), ClientError> {
+        self.toplevel(toplevel)?.surface.damage(0, 0, width, height);
+        Ok(())
+    }
+
     pub fn attach(
         &mut self,
         toplevel: ToplevelId,

@@ -62,3 +62,6 @@ expect_used = "deny"
 todo = "deny"
 unimplemented = "deny"
 unwrap_used = "deny"
+
+[profile.dev.package.smithay]
+debug-assertions = false

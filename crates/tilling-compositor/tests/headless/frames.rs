@@ -83,6 +83,23 @@ fn new_content_damages_only_the_window_that_committed_it() {
 }
 
 #[test]
+fn damage_of_negative_size_leaves_the_session_running() {
+    let harness = Harness::start();
+    let mut client = harness.connect();
+    let window = client.create_toplevel("org.example.Terminal", "shell");
+    client.map(window).unwrap();
+    harness.published(1);
+
+    client.damage(window, -12, -7).unwrap();
+    client.commit(window).unwrap();
+    let client_kept = client.roundtrip();
+    harness.idle_frames();
+
+    assert!(client_kept.is_ok());
+    assert_eq!(harness.published(1).scene.windows().len(), 1);
+}
+
+#[test]
 fn client_cursor_is_repainted_only_where_it_was_and_where_it_went() {
     let harness = Harness::start();
     let mut client = harness.connect();
