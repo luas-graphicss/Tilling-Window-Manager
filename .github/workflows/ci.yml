@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  check:
+    name: Checks of the full profile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare the build environment
+        uses: ./.github/actions/build-environment
+        with:
+          cache-scope: check
+
+      - name: Install the pinned audit tools
+        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+        with:
+          tool: cargo-audit@0.23.0,cargo-deny@0.20.2
+
+      - name: Run every check a release needs
+        run: cargo xtask check --profile full
+
+  scenarios:
+    name: Scenarios without an operator
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare the build environment
+        uses: ./.github/actions/build-environment
+        with:
+          cache-scope: scenarios
+
+      - name: Run every scenario
+        run: bash .github/scripts/run-scenarios.sh
+
+  package:
+    name: Packages and a clean install
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare the build environment
+        uses: ./.github/actions/build-environment
+        with:
+          cache-scope: package
+
+      - name: Build the packages
+        run: cargo xtask package --target x86_64-unknown-linux-gnu
+
+      - name: Verify the checksums
+        working-directory: dist
+        run: sha256sum --check SHA256SUMS
+
+      - name: Install the package on a clean Ubuntu 24.04 and run a headless session
+        run: >
+          docker run --rm
+          --volume "$PWD/dist:/dist:ro"
+          --volume "$PWD/.github/scripts:/scripts:ro"
+          ubuntu:24.04
+          bash /scripts/smoke-test-package.sh /dist
+
+      - name: Keep the packages of this run
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tilling-packages
+          path: dist/
+          if-no-files-found: error

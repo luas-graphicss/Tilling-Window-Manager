@@ -1,6 +1,6 @@
 # Development
 
-How to check a change, run the scenarios, fuzz the parsers and build the packages. The build requirements are in the [README](../../README.md#requirements).
+How to check a change, run the scenarios, fuzz the parsers, build the packages and read the CI. The build requirements are in the [README](../../README.md#requirements).
 
 ## Checks
 
@@ -80,6 +80,22 @@ builds `tilling` and `tillingctl` in release mode with the lockfile and writes t
 - The SBOM lists the crates the two binaries are built from, build dependencies included and test dependencies left out, each with the checksum the lockfile pins.
 - File times in the archives come from `SOURCE_DATE_EPOCH` when it is set, and from the clock otherwise. Two builds have not been compared byte for byte, so nothing here claims reproducible builds.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every pull request and on every push to `main`, on Ubuntu 24.04 with the toolchain of `rust-toolchain.toml`. It has three jobs:
+
+| Job | What it runs | What fails it |
+| --- | --- | --- |
+| `check` | `cargo xtask check --profile full`, with the pinned `cargo-audit` and `cargo-deny` | Any exit status other than 0, including 3 for a tool that is missing or has another version |
+| `scenarios` | Every scenario that `cargo xtask scenario --help` lists, without `--operator` | A step that fails or a filter that matches no test. A scenario that only lacks its hardware checks ends with status 3 and counts as done |
+| `package` | `cargo xtask package`, `sha256sum --check SHA256SUMS`, then `.github/scripts/smoke-test-package.sh` in a clean `ubuntu:24.04` container | A checksum that does not match, a dependency `apt` cannot resolve from `packaging/debian/control`, a headless session that does not answer `tillingctl get version` or does not end on `tillingctl quit`, or a program still on the path after the package is removed |
+
+The `package` job keeps `dist/` as the `tilling-packages` artifact of the run.
+
+The versions of `cargo-audit` and `cargo-deny` are written in the workflow as well as in `xtask/src/checks/plan.rs`. Change both together; when they differ, `check` ends with status 3 and names the version that is installed.
+
+The container of the smoke test runs as root, so its session runs as root too. Nothing in the CI starts the `nested` or the `drm` backend.
+
 ## Releasing
 
 1. `cargo xtask check --profile full` passes on the commit to release.
@@ -88,4 +104,4 @@ builds `tilling` and `tillingctl` in release mode with the lockfile and writes t
 4. The version in `Cargo.toml` and in `packaging/arch/PKGBUILD` is the one being released, and `sha256sums` in the `PKGBUILD` holds the digest of the tagged source archive instead of `SKIP`.
 5. The tag and the release are created by the maintainer. `SHA256SUMS`, the SBOM and the provenance file are published next to the packages.
 
-Steps 2 and 3 have not been done for any version.
+Version 0.1.0 was tagged with step 1 done by the CI on the release commit, without step 2, and with step 3 only as far as the CI goes: the `.deb` in a clean Ubuntu 24.04 container and a headless session. No package has started a session on a display, and the `PKGBUILD` has not been built. In the tree tagged `v0.1.0` the `PKGBUILD` still has `SKIP`, because the digest of step 4 only exists after the tag.
